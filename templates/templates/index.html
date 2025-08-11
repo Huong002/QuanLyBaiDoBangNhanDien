@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Bãi Đỗ Xe</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            background-image: url("../static/image/image001.png");
+            background-size: cover;
+            /* Để ảnh phủ toàn bộ */
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .container {
+            margin-top: 30px;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #video-container {
+            display: none;
+        }
+
+        #video {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="width: 60%;text-align: center;">
+        <h2 class="text-center mb-4">HỆ THỐNG QUẢN LÝ BÃI ĐỔ XE</h2>
+        <div>
+            <div class="col-md-6 mb-3">
+                <div class=" p-3" style="border-radius: 20px;">
+                    <button id="startCamera" class="btn-custom">OPEN <i class="fa-solid fa-camera"></i></button>
+                    <div id="video-container">
+                        <video id="video" autoplay></video>
+                        <button class="btn btn-success mt-2" id="capture">Chụp ảnh</button>
+                        <button class="btn btn-danger mt-2" id="stopCamera">Tắt Camera</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3 d-flex justify-content-center">
+                <div class="card p-4 text-center d-flex flex-column align-items-center"
+                    style="border-radius: 20px; width: 100%;">
+                    <h5>THANH TOÁN</h5>
+                    <input type="text" class="form-control" id="ThanhToan" placeholder="Nhập biển số xe">
+                    <button class="custom-button" id="thanhToan">Thanh toán</button>
+                    <p id="historyResult"></p>
+                </div>
+            </div>
+            <!-- Tải ảnh lên để quét -->
+            <div class="col-md-6 mb-3 d-flex justify-content-center">
+                <div class="card p-4 text-center d-flex flex-column align-items-center"
+                    style="border-radius: 20px; max-width: 400px; width: 100%;">
+                    <h5>QUÉT HÌNH ẢNH <i class="fa-solid fa-image"></i></h5>
+
+                    <div class="d-flex flex-column align-items-center" style="margin: 10px 0px;">
+                        <label for="fileInput" style="
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                            padding: 10px 15px;
+                            border: 1px solid #ccc;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 16px;
+                            color: #555;
+                            background-color: #f9f9f9;
+                            transition: background-color 0.3s, border-color 0.3s;">
+                            <img src="../static/image/photo.png" alt="icon"
+                                style="width: 24px; height: 24px; margin-right: 8px;">
+                            Ảnh/video
+                        </label>
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                        <button class="custom-button mt-3" id="uploadImage">Quét ảnh</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <!-- Xem lịch sử xe -->
+                <div class="col-md-6 mb-3 d-flex justify-content-center">
+                    <div class="card p-4 text-center d-flex flex-column align-items-center"
+                        style="border-radius: 20px; width: 100%;">
+                        <h5>XEM LỊCH SỬ XE</h5>
+                        <input type="text" class="form-control text-center" id="plateHistory"
+                            placeholder="Nhập biển số xe">
+                        <button class="custom-button mt-3" id="checkHistory">Xem lịch sử</button>
+                        <p id="historyResult"></p>
+                    </div>
+                </div>
+
+
+                <!-- Kiểm tra xe trong bãi -->
+                <div class="col-md-6 mb-3 d-flex justify-content-center">
+                    <div class="card p-4 text-center d-flex flex-column align-items-center"
+                        style="border-radius: 20px; width: 100%;">
+                        <h5>KIỂM TRA TRẠNG THÁI XE</h5>
+                        <input type="text" class="form-control" id="checkStatusInput" placeholder="Nhập biển số xe">
+                        <button class="custom-button" id="checkStatusBtn">Kiểm tra</button>
+                        <p id="checkStatus"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Bootstrap Modal -->
+        <div class="modal fade" id="plateModal" tabindex="-1" aria-labelledby="plateModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="plateModalLabel">Kết quả nhận diện</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img id="plate-image" src="" alt="Biển số xe" class="img-fluid"
+                            style="display:none; width: 300px;">
+                        <p id="plate-text" class="mt-2"></p>
+                        <p id="proviece" class="mt-2"></p>
+                        <p id="status" class="mt-2"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- modal hiển thị lịch sử  -->
+        <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="historyModalLabel">Lịch sử xe</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Biển số</th>
+                                    <th>Thời gian vào</th>
+                                    <th>Thời gian ra</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let videoStream;
+            const video = document.getElementById('video');
+            const videoContainer = document.getElementById('video-container');
+            const startCameraBtn = document.getElementById('startCamera');
+            const captureBtn = document.getElementById('capture');
+            const uploadBtn = document.getElementById('uploadImage');
+            const checkStatus = document.getElementById('checkStatusBtn');
+            const stopCameraBtn = document.getElementById('stopCamera');
+            const plateHistoryBtn = document.getElementById('checkHistory');
+            // Mở camera
+            startCameraBtn.addEventListener('click', async () => {
+                try {
+                    videoContainer.style.display = 'block';
+                    videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+                    video.srcObject = videoStream;
+                } catch (error) {
+                    console.error("Lỗi khi mở camera: ", error);
+                    alert("Không thể mở camera. Hãy kiểm tra quyền truy cập!");
+                }
+            });
+
+            // Chụp ảnh
+            captureBtn.addEventListener('click', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                canvas.toBlob(sendImageToServer, 'image/jpeg');
+            });
+
+            function sendImageToServer(blob) {
+                const formData = new FormData();
+                formData.append('image', blob, 'capture.jpg');
+
+                fetch('/detect', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.plate) {
+                            document.getElementById("plate-image").src = data.image_url;
+                            document.getElementById("plate-image").style.display = "block";
+                            document.getElementById("proviece").innerText = "Tỉnh thành: " + data.province;
+                            document.getElementById("plate-text").innerText = "Biển số xe: " + data.plate +
+                                " Đến từ: " + data.province;
+
+
+                        } else {
+                            alert("Không tìm thấy biển số!");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Lỗi:", error);
+                        alert("Có lỗi xảy ra!");
+                    });
+            }
+
+            // Tải ảnh lên để quét
+            uploadBtn.addEventListener('click', () => {
+                const file = document.getElementById('fileInput').files[0];
+                if (!file) return alert("Vui lòng chọn ảnh!");
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                fetch('/detect', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.plate) {
+                            document.getElementById("plate-image").src = data.image_url;
+                            document.getElementById("plate-image").style.display = "block";
+                            document.getElementById("plate-text").innerText = "Biển số xe: " + data.plate;
+                            document.getElementById("proviece").innerText = "Tỉnh thành: " + data
+                                .province;
+                            document.getElementById("status").innerText = "Trạng thái: " + data.status;
+                            // Hiển thị modal Bootstrap
+                            let modal = new bootstrap.Modal(document.getElementById('plateModal'));
+                            modal.show();
+                        } else {
+                            alert("Không tìm thấy biển số!");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Lỗi:", error);
+                        alert("Có lỗi xảy ra!");
+                    });
+            });
+
+            // Tắt Camera
+            stopCameraBtn.addEventListener('click', () => {
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop()); // Dừng tất cả các track
+                    video.srcObject = null; // Hủy luồng video
+                    videoStream = null; // Giải phóng bộ nhớ
+                }
+                videoContainer.style.display = 'none'; // Ẩn khung video
+            });
+            plateHistoryBtn.addEventListener('click', () => {
+                const plateHistoryInput = document.getElementById('plateHistory').value;
+                var numberPlate = {
+                    "plate": plateHistoryInput
+                }
+                fetch('/history', {
+                        method: 'POST',
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(numberPlate)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data)
+                        let history = data.history;
+                        let tableBody = document.getElementById('historyTableBody')
+                        tableBody.innerHTML = '';
+
+                        history.forEach(item => {
+                            let status = "Chưa có dữ liệu"
+                            if (item.status == 0) {
+                                status = "Xe hiện đang trong bãi"
+                            } else {
+                                status = "Xe đã rời khỏi bãi"
+                            }
+                            let row = `<tr>
+                            <td>${item.plate}</td>
+                            <td>${item.start_time || "Chưa có dữ liệu"}</td>
+                            <td>${item.end_time || "Chưa có dữ liệu"}</td>
+                            <td>${status}</td>
+                        </tr>`;
+                            tableBody.insertAdjacentHTML('beforeend', row);
+                        });
+
+                        // Hiển thị modal sau khi load dữ liệu
+                        let historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+                        historyModal.show();
+                    })
+                    .catch(error => {
+                        console.error("Lỗi:", error);
+                        alert("Có lỗi xảy ra!");
+                    });
+            })
+            checkStatus.addEventListener('click', () => {
+                const numberplate = document.getElementById('checkStatusInput').value;
+                // chuyển về dạng json
+                const plate = {
+                    "plate": numberplate
+                }
+                fetch('/check', {
+                        method: 'POST',
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(plate)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Dữ liệu từ server:", data);
+                        document.getElementById('checkStatus').innerText = "Trạng thái: " + data.status
+                    })
+            })
+        </script>
+</body>
+
+</html>
