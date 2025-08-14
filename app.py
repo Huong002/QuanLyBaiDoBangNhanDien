@@ -4,11 +4,15 @@ from flask_migrate import Migrate
 import time
 from datetime import datetime
 import os
+from config.database import DB_CONFIG
 
 app = Flask(__name__)
 
 # cấu hình cho migration:
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:150600@localhost:5432/machine'
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
+    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
