@@ -135,18 +135,7 @@ def is_vehicle_in_parking(number_plate):
 
 @app.route('/')
 def index():
-    try:
-        count = Numberplate.query.count()
-        return jsonify({
-            "status": "success",
-            "message": f"Database connected! Found {count} records.",
-            "database": "PostgreSQL"
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
+    return render_template('templates/index.html')
 
 @app.route('/test-insert')
 def test_insert():
