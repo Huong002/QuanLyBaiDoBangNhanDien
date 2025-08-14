@@ -1,8 +1,8 @@
 # config/database.py
 DB_CONFIG = {
     "host": "localhost",
-    "database": "ComputerVision",
+    "database": "machine",
     "user": "postgres",  
-    "password": "1234",   
+    "password": "150600",   
     "port": "5432"
 }

@@ -1,142 +1,198 @@
 from flask import Flask, render_template, request, jsonify
-import cv2
-import numpy as np
-import pytesseract
-from ultralytics import YOLO
-import sqlite3
-import os
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 import time
-from database.number_plate_db import check_np, check_np_status, insert_np, update_np, get_province,get_history,is_vehicle_in_parking
+from datetime import datetime
+import os
+
 app = Flask(__name__)
 
-# Load model YOLO
-model = YOLO("C:/Users/Laptop/Downloads/Demo/Demo/QuanLyBaiDoXe/runs/detect/train3-20250331T033458Z-001/train3/weights/best.pt")
+# cấu hình cho migration:
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:150600@localhost:5432/machine'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Cấu hình đường dẫn pytesseract
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+# Models
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f'<User {self.username}>'
+
+class Numberplate(db.Model):
+    __tablename__ = 'numberplate'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    number_plate = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.Integer, nullable=False, default=1)
+    province = db.Column(db.String(50), nullable=True)
+    date_in = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    date_out = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return f'<Numberplate {self.number_plate}>'
+
+# Database service functions
+def check_np(number_plate):
+    try:
+        count = Numberplate.query.filter_by(number_plate=number_plate).count()
+        return count
+    except Exception as e:
+        print(f"Lỗi check_np: {e}")
+        return 0
+
+def insert_np(number_plate):
+    try:
+        province = get_province(number_plate)
+        new_plate = Numberplate(
+            number_plate=number_plate,
+            status=1,
+            province=province,
+            date_in=datetime.utcnow()
+        )
+        db.session.add(new_plate)
+        db.session.commit()
+        return True
+    except Exception as e:
+        print(f"Lỗi insert_np: {e}")
+        db.session.rollback()
+        return False
+
+def get_province(number_plate):
+    province_codes = {
+        '11': 'Cao Bằng', '12': 'Lạng Sơn', '13': 'Quảng Ninh', '14': 'Hải Phòng',
+        '15': 'Hải Dương', '16': 'Hưng Yên', '17': 'Thái Bình', '18': 'Hà Nam',
+        '19': 'Nam Định', '20': 'Phú Thọ', '21': 'Thái Nguyên', '22': 'Yên Bái',
+        '29': 'Hà Nội', '30': 'Hà Nội', '31': 'Hà Nội', '32': 'Hà Nội', '33': 'Hà Nội',
+        '43': 'Đà Nẵng', '47': 'Đắk Lắk', '48': 'Đắk Nông', '49': 'Lâm Đồng',
+        '50': 'TP.HCM', '51': 'TP.HCM', '52': 'TP.HCM', '53': 'TP.HCM',
+        '54': 'TP.HCM', '55': 'TP.HCM', '56': 'TP.HCM', '57': 'TP.HCM',
+        '58': 'TP.HCM', '59': 'TP.HCM', '60': 'Đồng Nai', '61': 'Bình Dương'
+    }
+    
+    if len(number_plate) >= 2:
+        code = number_plate[:2]
+        return province_codes.get(code, 'Không xác định')
+    return 'Không xác định'
+
+def check_np_status(number_plate):
+    try:
+        result = Numberplate.query.filter_by(number_plate=number_plate)\
+                                 .order_by(Numberplate.date_in.desc()).first()
+        if result:
+            return (result.id, result.number_plate, result.status)
+        return None
+    except Exception as e:
+        print(f"Lỗi check_np_status: {e}")
+        return None
+
+def update_np(plate_id):
+    try:
+        plate = Numberplate.query.get(plate_id)
+        if plate:
+            plate.status = 0  # 0: xe ra bãi
+            plate.date_out = datetime.utcnow()
+            db.session.commit()
+            return True
+        return False
+    except Exception as e:
+        print(f"Lỗi update_np: {e}")
+        db.session.rollback()
+        return False
+
+def get_history(number_plate):
+    try:
+        records = Numberplate.query.filter_by(number_plate=number_plate)\
+                                  .order_by(Numberplate.date_in.desc()).all()
+        result = []
+        for record in records:
+            result.append((
+                record.number_plate,
+                record.date_in,
+                record.date_out,
+                'Trong bãi' if record.status == 1 else 'Đã ra bãi'
+            ))
+        return result
+    except Exception as e:
+        print(f"Lỗi get_history: {e}")
+        return []
+
+def is_vehicle_in_parking(number_plate):
+    try:
+        latest_record = Numberplate.query.filter_by(number_plate=number_plate)\
+                                        .order_by(Numberplate.date_in.desc()).first()
+        if latest_record and latest_record.status == 1:
+            return "Xe đang trong bãi"
+        else:
+            return "Xe không trong bãi"
+    except Exception as e:
+        print(f"Lỗi is_vehicle_in_parking: {e}")
+        return "Lỗi kiểm tra"
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        count = Numberplate.query.count()
+        return jsonify({
+            "status": "success",
+            "message": f"Database connected! Found {count} records.",
+            "database": "PostgreSQL"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        })
 
-# nhận biển số xe vào và detect
+@app.route('/test-insert')
+def test_insert():
+    try:
+        timestamp = int(time.time())
+        test_plate = f"30A-{timestamp % 10000:04d}"
+        
+        success = insert_np(test_plate)
+        if success:
+            return jsonify({
+                "status": "success",
+                "message": f"Test record {test_plate} inserted successfully!"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to insert test record"
+            })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        })
+
 @app.route('/detect', methods=['POST'])
 def detect_plate():
-    print("Received request:", request.files)  
+    # Tạm thời simulate detect cho test
+    test_plate = "30A-12345"
+    
+    status = "Xe vào bãi đổ"
+    province = get_province(test_plate)
+    check = check_np(test_plate)
+    
+    if check == 0:
+        insert_np(test_plate)
+    
+    return jsonify({
+        "plate": test_plate,
+        "province": province,
+        "status": status,
+        "message": "Test mode - no actual image processing"
+    })
 
-    if 'image' not in request.files:
-        return jsonify({"error": "No image file"}), 400
-
-    file = request.files['image']
-    if file.content_type not in ["image/jpeg", "image/png"]:
-        return jsonify({"error": "File không hợp lệ"}), 400
-
-    file_bytes = np.frombuffer(file.read(), np.uint8)
-    if file_bytes.size == 0:
-        return jsonify({"error": "Không thể đọc file"}), 400
-
-    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-    if image is None:
-        return jsonify({"error": "Lỗi khi đọc ảnh"}), 400
-
-    print("Kích thước ảnh:", image.shape)
-    image = cv2.resize(image, (640, 640))
-
-    results = model(image)
-    detected_plate = None
-
-    for result in results:
-        for box in result.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            plate_img = image[y1:y2, x1:x2]
-            # Tạo thư mục nếu chưa có
-            output_dir = "static/images"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-
-            # Tạo đường dẫn lưu ảnh (đặt tên theo timestamp hoặc biển số xe)
-            timestamp = int(time.time())  # Lấy timestamp (giây)
-            filename = f"{detected_plate.replace(' ', '_')}_{timestamp}.jpg" if detected_plate else f"unknown_{timestamp}.jpg"
-            image_path = os.path.join(output_dir, filename)
-
-            # Lưu ảnh đã cắt
-            cv2.imwrite(image_path, plate_img)
-            if plate_img.shape[0] < 20 or plate_img.shape[1] < 50:
-                continue
-
-            # Tiền xử lý ảnh
-            gray = cv2.cvtColor(plate_img, cv2.COLOR_BGR2GRAY)
-            gray = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)  
-            gray = cv2.equalizeHist(gray)  
-
-            # CLAHE - tăng độ tương phản
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-            gray = clahe.apply(gray)
-
-            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-            # Lưu ảnh debug nếu cần
-            cv2.imwrite("debug_plate.jpg", plate_img)
-            cv2.imwrite("debug_thresh.jpg", thresh)
-
-            # OCR với psm 7
-            config = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-            text = pytesseract.image_to_string(thresh, lang='eng', config=config)
-            detected_plate = text.strip()
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-    if detected_plate:
-        status="Xe vào bãi đổ"
-        proviece=get_province(detected_plate)
-        check = check_np(detected_plate)
-        if check == 0:
-            insert_np(detected_plate)
-        else:
-            check2 = check_np_status(detected_plate)
-            print("Giá trị check2:", check2) 
-            if check2[2] == 0: 
-                status="Xe rời khỏi bãi đổ"
-                update_np(check2[0])
-            else:
-                insert_np(detected_plate)
-        return jsonify({
-            "plate": detected_plate,
-            "province":proviece,
-            "image_url": f"/static/images/{filename}",
-            "status":status
-        })
-    return jsonify({"error": "Không tìm thấy biển số"}), 400
-#Hàm định dạng ngày giờ
-def convert_datetime(dt):
-    if dt is None:
-        return "Chưa có dữ liệu"
-    return dt.strftime("%Y-%m-%d %H:%M:%S")  # Định dạng ngày giờ
-# Lấy lịch sử
-@app.route('/history', methods=['POST'])
-def def_get_history():
-    data = request.get_json()
-    plate=data.get("plate")
-    print("plate:",plate)
-    records=get_history(plate)
-    # Chuyển đổi datetime thành string
-    formatted_records = [
-        {
-            "plate": r[0],
-            "start_time": convert_datetime(r[1]),
-            "end_time": convert_datetime(r[2]),
-            "status": r[3]
-        }
-        for r in records
-    ]
-    return jsonify({"history": formatted_records})
-#Hàm trả về trạng thái
-@app.route('/check',methods=['POST'])
-def check_status():
-    data=request.get_json()
-    plate=data.get("plate")
-    print("plate: ",plate)
-    status=is_vehicle_in_parking(plate)
-    print("status: ",status)
-    return jsonify({"status": status})
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+        print("Database tables created/verified!")
+        print("App running in test mode (no YOLO)")
+    app.run(debug=True, port=5001)
