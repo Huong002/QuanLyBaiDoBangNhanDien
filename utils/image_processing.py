@@ -1,7 +1,7 @@
 # utils/image_processing.py
 from pytesseract import pytesseract
 from PIL import Image
-from database.number_plate_db import check_np, check_np_status, insert_np, update_np, get_province
+from app import check_np, check_np_status, insert_np, update_np, get_province
 
 def read_number_plate(image_path):
     path_to_tesseract = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # Đường dẫn đến Tesseract
