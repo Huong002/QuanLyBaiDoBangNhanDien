@@ -1,6 +1,6 @@
 import cv2
 # utils/image_processing.py
-
+import re
 from ultralytics import YOLO
 from PIL import Image
 import pytesseract
@@ -19,11 +19,12 @@ def detect_plate_yolo(image_path):
     x1, y1, x2, y2 = map(int, boxes[0])
     image = Image.open(image_path)
     plate_crop = image.crop((x1, y1, x2, y2))
-    # Lưu thử ảnh crop để kiểm tra
     plate_crop.save("debug_plate_crop.jpg")
     number_plate = read_number_plate(plate_crop)
-    print("Kết quả OCR:", number_plate)
-    return number_plate, plate_crop
+    print("Ktet qua ORC: ", number_plate)
+    result_output = format_plate(number_plate)
+    print("Ket qua sau format:", result_output)
+    return result_output, plate_crop
 
 def preprocess_for_ocr(pil_img):
     img = np.array(pil_img)
@@ -33,6 +34,12 @@ def preprocess_for_ocr(pil_img):
         gray = img
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return Image.fromarray(thresh)
+    
+
+# ham chuan hoa dinh dang dau ra
+def format_plate(text):
+    text = re.sub(r'[^A-Z0-9\-.]', '', text.upper())
+    return text
 
 def read_number_plate(image_or_path):
     path_to_tesseract = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
