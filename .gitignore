@@ -39,3 +39,5 @@ migrations/versions/
 
 # Ignore secrets
 .env
+
+.config/
