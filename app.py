@@ -23,7 +23,7 @@ migrate = Migrate(app, db)
 def index():
     try:
         count = Numberplate.query.count()
-        return render_template('templates/index.html', record_count=count)
+        return render_template('index.html', record_count=count)
     except Exception as e:
         return f"Lỗi: {e}", 500
 
