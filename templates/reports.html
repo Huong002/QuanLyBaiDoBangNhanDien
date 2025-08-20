@@ -1,0 +1,351 @@
+{% extends "layout.html" %} {% block title %}Báo Cáo - Quản Lý Bãi Đỗ Xe{%
+endblock %} {% block page_title %}Báo Cáo Thống Kê{% endblock %} {% block
+breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
+<li class="breadcrumb-item active">Báo Cáo</li>
+{% endblock %} {% block main_content %}
+<!-- Summary Stats -->
+<div class="row">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ daily_in }}</h3>
+                <p>Xe Vào Hôm Nay</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3 id="weekly-total">
+                    {% set weekly_total = 0 %} {% for day in weekly_data %} {%
+                    set weekly_total = weekly_total + day.count %} {% endfor %}
+                    {{ weekly_total }}
+                </h3>
+                <p>Xe Vào Tuần Này</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-calendar-week"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3 id="avg-daily">{{ (weekly_total / 7)|round|int }}</h3>
+                <p>Trung Bình/Ngày</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3 id="peak-day">
+                    {% set max_count = 0 %} {% for day in weekly_data %} {% if
+                    day.count > max_count %} {% set max_count = day.count %} {%
+                    endif %} {% endfor %} {{ max_count }}
+                </h3>
+                <p>Cao Điểm</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Weekly Chart -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-chart-bar mr-1"></i>
+                    Biểu Đồ Xe Vào 7 Ngày Gần Đây
+                </h3>
+                <div class="card-tools">
+                    <button
+                        type="button"
+                        class="btn btn-tool"
+                        data-card-widget="collapse"
+                    >
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="weeklyChart" style="height: 300px"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hourly Distribution -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-clock mr-1"></i>
+                    Phân Bố Theo Giờ
+                </h3>
+            </div>
+            <div class="card-body">
+                <canvas id="hourlyChart" style="height: 300px"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Reports -->
+<div class="row">
+    <!-- Top Vehicles -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-trophy mr-1"></i>
+                    Top Xe Ra Vào Nhiều Nhất
+                </h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Biển Số</th>
+                            <th>Số Lần</th>
+                            <th>Lần Cuối</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="badge badge-primary"
+                                    >30A-12345</span
+                                >
+                            </td>
+                            <td>15</td>
+                            <td>Hôm nay</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="badge badge-primary"
+                                    >29B-67890</span
+                                >
+                            </td>
+                            <td>12</td>
+                            <td>Hôm qua</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="badge badge-primary"
+                                    >51F-11111</span
+                                >
+                            </td>
+                            <td>8</td>
+                            <td>2 ngày trước</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Analysis -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-clock mr-1"></i>
+                    Phân Tích Thời Gian
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="progress-group">
+                    Sáng (6h-12h)
+                    <span class="float-right"><b>45%</b></span>
+                    <div class="progress progress-sm">
+                        <div
+                            class="progress-bar bg-primary"
+                            style="width: 45%"
+                        ></div>
+                    </div>
+                </div>
+                <div class="progress-group">
+                    Chiều (12h-18h)
+                    <span class="float-right"><b>35%</b></span>
+                    <div class="progress progress-sm">
+                        <div
+                            class="progress-bar bg-success"
+                            style="width: 35%"
+                        ></div>
+                    </div>
+                </div>
+                <div class="progress-group">
+                    Tối (18h-24h)
+                    <span class="float-right"><b>20%</b></span>
+                    <div class="progress progress-sm">
+                        <div
+                            class="progress-bar bg-warning"
+                            style="width: 20%"
+                        ></div>
+                    </div>
+                </div>
+                <div class="progress-group">
+                    Đêm (0h-6h)
+                    <span class="float-right"><b>5%</b></span>
+                    <div class="progress progress-sm">
+                        <div
+                            class="progress-bar bg-danger"
+                            style="width: 5%"
+                        ></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-download mr-1"></i>
+                    Xuất Báo Cáo
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button
+                            class="btn btn-success btn-block"
+                            onclick="exportExcel()"
+                        >
+                            <i class="fas fa-file-excel"></i> Xuất Excel
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button
+                            class="btn btn-danger btn-block"
+                            onclick="exportPDF()"
+                        >
+                            <i class="fas fa-file-pdf"></i> Xuất PDF
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button
+                            class="btn btn-info btn-block"
+                            onclick="printReport()"
+                        >
+                            <i class="fas fa-print"></i> In Báo Cáo
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button
+                            class="btn btn-primary btn-block"
+                            onclick="emailReport()"
+                        >
+                            <i class="fas fa-envelope"></i> Gửi Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block page_scripts %}
+<script>
+    $(document).ready(function() {
+      // Weekly Chart
+      const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+      const weeklyChart = new Chart(weeklyCtx, {
+        type: 'bar',
+        data: {
+          labels: [
+            {% for day in weekly_data %}
+            '{{ day.date }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+          ],
+          datasets: [{
+            label: 'Số xe vào',
+            data: [
+              {% for day in weekly_data %}
+              {{ day.count }}{% if not loop.last %},{% endif %}
+              {% endfor %}
+            ],
+            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          },
+          plugins: {
+            legend: {
+              display: true
+            }
+          }
+        }
+      });
+
+      // Hourly Distribution Chart
+      const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+      const hourlyChart = new Chart(hourlyCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Sáng', 'Chiều', 'Tối', 'Đêm'],
+          datasets: [{
+            data: [45, 35, 20, 5],
+            backgroundColor: [
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(255, 206, 86, 0.8)',
+              'rgba(255, 99, 132, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    });
+
+    function exportExcel() {
+      toastr.info('Đang chuẩn bị file Excel...', 'Thông báo');
+      // Implement Excel export
+    }
+
+    function exportPDF() {
+      toastr.info('Đang tạo file PDF...', 'Thông báo');
+      // Implement PDF export
+    }
+
+    function printReport() {
+      window.print();
+    }
+
+    function emailReport() {
+      toastr.info('Chức năng gửi email sẽ được phát triển', 'Thông báo');
+      // Implement email functionality
+    }
+</script>
+{% endblock %}

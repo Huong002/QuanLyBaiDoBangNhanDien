@@ -1,0 +1,286 @@
+{% extends "layout.html" %} {% block title %}Nhận Diện Biển Số - Quản Lý Bãi Đỗ
+Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
+%}Nhận Diện Biển Số{% endblock %} {% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
+<li class="breadcrumb-item active">Nhận Diện Biển Số</li>
+{% endblock %} {% block main_content %}
+<div class="row">
+    <div class="col-md-6">
+        <!-- Upload Image Card -->
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Tải Ảnh Lên</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                <form
+                    id="upload-form"
+                    action="/detect"
+                    method="post"
+                    enctype="multipart/form-data"
+                >
+                    <div class="form-group">
+                        <label for="image-upload"
+                            >Chọn ảnh chứa biển số xe</label
+                        >
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input
+                                    type="file"
+                                    class="custom-file-input"
+                                    id="image-upload"
+                                    name="image"
+                                    accept="image/*"
+                                    required
+                                />
+                                <label
+                                    class="custom-file-label"
+                                    for="image-upload"
+                                    >Chọn file...</label
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Area -->
+                    <div class="form-group">
+                        <div id="image-preview" style="display: none">
+                            <img
+                                id="preview-img"
+                                src=""
+                                alt="Preview"
+                                class="img-fluid"
+                                style="max-height: 300px"
+                            />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Nhận Diện
+                    </button>
+                </form>
+            </div>
+            <!-- /.card-body -->
+        </div>
+        <!-- /.card -->
+    </div>
+
+    <div class="col-md-6">
+        <!-- Results Card -->
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title">Kết Quả Nhận Diện</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                <div id="detection-results" style="display: none">
+                    <!-- Detected plate image -->
+                    <div class="text-center mb-3">
+                        <img
+                            id="detected-plate"
+                            src=""
+                            alt="Biển số được nhận diện"
+                            class="img-fluid border"
+                        />
+                    </div>
+
+                    <!-- Detected text -->
+                    <div class="alert alert-success">
+                        <h5>
+                            <i class="icon fas fa-check"></i> Biển số nhận diện
+                            được:
+                        </h5>
+                        <h3 id="detected-text" class="text-center"></h3>
+                    </div>
+
+                    <!-- Confidence score -->
+                    <div class="info-box">
+                        <span class="info-box-icon bg-success"
+                            ><i class="fas fa-percent"></i
+                        ></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Độ tin cậy</span>
+                            <span class="info-box-number" id="confidence-score"
+                                >0%</span
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="text-center mt-3">
+                        <button class="btn btn-primary" onclick="saveResult()">
+                            <i class="fas fa-save"></i> Lưu Kết Quả
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetForm()">
+                            <i class="fas fa-redo"></i> Nhận Diện Mới
+                        </button>
+                    </div>
+                </div>
+
+                <div id="no-results" class="text-center text-muted">
+                    <i class="fas fa-image fa-3x mb-3"></i>
+                    <p>Tải ảnh lên để bắt đầu nhận diện biển số xe</p>
+                </div>
+            </div>
+            <!-- /.card-body -->
+        </div>
+        <!-- /.card -->
+    </div>
+</div>
+
+<!-- Recent Detection History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Lịch Sử Nhận Diện Gần Đây</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Thời Gian</th>
+                            <th>Ảnh Gốc</th>
+                            <th>Biển Số</th>
+                            <th>Độ Tin Cậy</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detection-history">
+                        <!-- History rows will be loaded here -->
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                Chưa có dữ liệu
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- /.card-body -->
+        </div>
+        <!-- /.card -->
+    </div>
+</div>
+{% endblock %} {% block page_scripts %}
+<script>
+    $(document).ready(function () {
+        // Handle file input change
+        $("#image-upload").on("change", function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $("#preview-img").attr("src", e.target.result);
+                    $("#image-preview").show();
+                };
+                reader.readAsDataURL(file);
+
+                // Update file label
+                $(".custom-file-label").text(file.name);
+            }
+        });
+
+        // Handle form submission
+        $("#upload-form").on("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            // Show loading state
+            const submitBtn = $(this).find('button[type="submit"]');
+            const originalText = submitBtn.html();
+            submitBtn
+                .html('<i class="fas fa-spinner fa-spin"></i> Đang xử lý...')
+                .prop("disabled", true);
+
+            $.ajax({
+                url: "/detect",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    if (response.success) {
+                        displayResults(response);
+                    } else {
+                        showError(
+                            response.message ||
+                                "Có lỗi xảy ra khi nhận diện biển số"
+                        );
+                    }
+                },
+                error: function () {
+                    showError("Có lỗi xảy ra khi kết nối với máy chủ");
+                },
+                complete: function () {
+                    // Restore button state
+                    submitBtn.html(originalText).prop("disabled", false);
+                },
+            });
+        });
+    });
+
+    function displayResults(response) {
+        $("#detected-plate").attr("src", response.plate_image);
+        $("#detected-text").text(response.plate_text);
+        $("#confidence-score").text(
+            Math.round(response.confidence * 100) + "%"
+        );
+
+        $("#no-results").hide();
+        $("#detection-results").show();
+
+        // Add to history (if available)
+        if (response.history) {
+            updateHistory(response.history);
+        }
+    }
+
+    function showError(message) {
+        toastr.error(message, "Lỗi");
+    }
+
+    function saveResult() {
+        // Implementation for saving result
+        toastr.success("Kết quả đã được lưu thành công!", "Thành công");
+    }
+
+    function resetForm() {
+        $("#upload-form")[0].reset();
+        $("#image-preview").hide();
+        $("#detection-results").hide();
+        $("#no-results").show();
+        $(".custom-file-label").text("Chọn file...");
+    }
+
+    function updateHistory(historyData) {
+        // Implementation for updating history table
+        // This would be populated from server data
+    }
+</script>
+{% endblock %} {% block additional_css %}
+<style>
+    .custom-file-label::after {
+        content: "Duyệt";
+    }
+
+    #image-preview {
+        border: 2px dashed #ddd;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px;
+    }
+
+    #detected-plate {
+        max-height: 150px;
+        border-radius: 5px;
+    }
+
+    .table th {
+        background-color: #f4f4f4;
+    }
+</style>
+{% endblock %}

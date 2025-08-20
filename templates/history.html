@@ -1,0 +1,275 @@
+{% extends "layout.html" %} {% block title %}Lịch Sử Ra Vào - Quản Lý Bãi Đỗ
+Xe{% endblock %} {% block page_title %}Lịch Sử Ra Vào{% endblock %} {% block
+breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
+<li class="breadcrumb-item active">Lịch Sử Ra Vào</li>
+{% endblock %} {% block main_content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Filter Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Bộ Lọc</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Từ ngày:</label>
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="date-from"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Đến ngày:</label>
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="date-to"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Biển số:</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Nhập biển số"
+                                id="plate-filter"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <div>
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="applyFilter()"
+                                >
+                                    <i class="fas fa-filter"></i> Lọc
+                                </button>
+                                <button
+                                    class="btn btn-secondary"
+                                    onclick="resetFilter()"
+                                >
+                                    <i class="fas fa-undo"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Table Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Lịch Sử Ra Vào Bãi Đỗ</h3>
+                <div class="card-tools">
+                    <button
+                        type="button"
+                        class="btn btn-success btn-sm"
+                        onclick="exportData()"
+                    >
+                        <i class="fas fa-download"></i> Xuất Excel
+                    </button>
+                </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                {% if history %}
+                <table
+                    class="table table-bordered table-striped"
+                    id="history-table"
+                >
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Biển Số</th>
+                            <th>Thời Gian</th>
+                            <th>Loại</th>
+                            <th>Trạng Thái</th>
+                            <th>Ghi Chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in history %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <span class="badge badge-primary"
+                                    >{{ record.plate_text }}</span
+                                >
+                            </td>
+                            <td>
+                                {{ record.created_at.strftime('%H:%M:%S
+                                %d/%m/%Y') }}
+                            </td>
+                            <td>
+                                {% if record.status == 1 %}
+                                <span class="badge badge-success">Vào</span>
+                                {% else %}
+                                <span class="badge badge-warning">Ra</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.status == 1 %}
+                                <span class="text-success">Trong bãi</span>
+                                {% else %}
+                                <span class="text-muted">Đã ra</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">Auto detect</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-history fa-3x mb-3"></i>
+                    <p>Chưa có lịch sử ra vào</p>
+                </div>
+                {% endif %}
+            </div>
+            <!-- /.card-body -->
+        </div>
+        <!-- /.card -->
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3 id="total-records">{{ history|length }}</h3>
+                <p>Tổng Lượt</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-list"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3 id="cars-in">
+                    {% set in_count = 0 %} {% for record in history %} {% if
+                    record.status == 1 %} {% set in_count = in_count + 1 %} {%
+                    endif %} {% endfor %} {{ in_count }}
+                </h3>
+                <p>Lượt Vào</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3 id="cars-out">{{ history|length - in_count }}</h3>
+                <p>Lượt Ra</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3 id="unique-vehicles">
+                    {% set unique_plates = [] %} {% for record in history %} {%
+                    if record.plate_text not in unique_plates %} {% set _ =
+                    unique_plates.append(record.plate_text) %} {% endif %} {%
+                    endfor %} {{ unique_plates|length }}
+                </h3>
+                <p>Xe Khác Nhau</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-car"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block page_plugins %}
+<!-- DataTables  & Plugins -->
+<script src="{{ url_for('static', filename='plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+{% endblock %} {% block additional_css %}
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}"
+/>
+{% endblock %} {% block page_scripts %}
+<script>
+    $(document).ready(function () {
+        // Set default date range (last 7 days)
+        const today = new Date();
+        const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        $("#date-to").val(today.toISOString().split("T")[0]);
+        $("#date-from").val(lastWeek.toISOString().split("T")[0]);
+
+        // Initialize DataTable
+        $("#history-table").DataTable({
+            responsive: true,
+            lengthChange: true,
+            autoWidth: false,
+            pageLength: 25,
+            order: [[2, "desc"]], // Sort by time desc
+            language: {
+                search: "Tìm kiếm:",
+                lengthMenu: "Hiển thị _MENU_ mục",
+                info: "Hiển thị _START_ đến _END_ của _TOTAL_ mục",
+                infoEmpty: "Hiển thị 0 đến 0 của 0 mục",
+                infoFiltered: "(lọc từ _MAX_ tổng số mục)",
+                paginate: {
+                    first: "Đầu",
+                    last: "Cuối",
+                    next: "Tiếp",
+                    previous: "Trước",
+                },
+            },
+        });
+    });
+
+    function applyFilter() {
+        const dateFrom = $("#date-from").val();
+        const dateTo = $("#date-to").val();
+        const plateFilter = $("#plate-filter").val();
+
+        // Construct URL with filter parameters
+        const params = new URLSearchParams();
+        if (dateFrom) params.append("date_from", dateFrom);
+        if (dateTo) params.append("date_to", dateTo);
+        if (plateFilter) params.append("plate", plateFilter);
+
+        const url =
+            window.location.pathname +
+            (params.toString() ? "?" + params.toString() : "");
+        window.location.href = url;
+    }
+
+    function resetFilter() {
+        $("#date-from").val("");
+        $("#date-to").val("");
+        $("#plate-filter").val("");
+        window.location.href = window.location.pathname;
+    }
+
+    function exportData() {
+        // Implement Excel export
+        toastr.info("Chức năng xuất Excel sẽ được phát triển", "Thông báo");
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,478 @@
+{% extends "layout.html" %} {% block title %}Cài Đặt - Quản Lý Bãi Đỗ Xe{%
+endblock %} {% block page_title %}Cài Đặt Hệ Thống{% endblock %} {% block
+breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
+<li class="breadcrumb-item active">Cài Đặt</li>
+{% endblock %} {% block main_content %}
+<div class="row">
+    <!-- System Settings -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-cogs mr-2"></i>
+                    Cài Đặt Hệ Thống
+                </h3>
+            </div>
+            <div class="card-body">
+                <form id="system-settings-form">
+                    <div class="form-group">
+                        <label for="parking-capacity">Tổng Số Chỗ Đỗ</label>
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="parking-capacity"
+                            value="200"
+                            min="1"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="detection-confidence"
+                            >Ngưỡng Tin Cậy Nhận Diện (%)</label
+                        >
+                        <input
+                            type="range"
+                            class="form-control-range"
+                            id="detection-confidence"
+                            min="0"
+                            max="100"
+                            value="85"
+                        />
+                        <small class="form-text text-muted"
+                            >Hiện tại:
+                            <span id="confidence-value">85%</span></small
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="auto-cleanup">Tự Động Xóa Dữ Liệu Cũ</label>
+                        <select class="form-control" id="auto-cleanup">
+                            <option value="never">Không bao giờ</option>
+                            <option value="30">Sau 30 ngày</option>
+                            <option value="90" selected>Sau 90 ngày</option>
+                            <option value="365">Sau 1 năm</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input"
+                                id="email-notifications"
+                                checked
+                            />
+                            <label
+                                class="custom-control-label"
+                                for="email-notifications"
+                                >Thông Báo Email</label
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input"
+                                id="auto-backup"
+                            />
+                            <label
+                                class="custom-control-label"
+                                for="auto-backup"
+                                >Sao Lưu Tự Động</label
+                            >
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Lưu Cài Đặt
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detection Settings -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-camera mr-2"></i>
+                    Cài Đặt Nhận Diện
+                </h3>
+            </div>
+            <div class="card-body">
+                <form id="detection-settings-form">
+                    <div class="form-group">
+                        <label for="model-path">Đường Dẫn Model YOLO</label>
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="model-path"
+                                value="runs/train3/weights/best.pt"
+                                readonly
+                            />
+                            <div class="input-group-append">
+                                <button
+                                    class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="browseModel()"
+                                >
+                                    <i class="fas fa-folder-open"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="image-size">Kích Thước Ảnh Xử Lý</label>
+                        <select class="form-control" id="image-size">
+                            <option value="416">416x416</option>
+                            <option value="608" selected>608x608</option>
+                            <option value="832">832x832</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max-detections"
+                            >Số Biển Số Tối Đa/Ảnh</label
+                        >
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="max-detections"
+                            value="5"
+                            min="1"
+                            max="10"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input"
+                                id="save-cropped"
+                                checked
+                            />
+                            <label
+                                class="custom-control-label"
+                                for="save-cropped"
+                                >Lưu Ảnh Biển Số Cắt</label
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input"
+                                id="debug-mode"
+                            />
+                            <label class="custom-control-label" for="debug-mode"
+                                >Chế Độ Debug</label
+                            >
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Lưu Cài Đặt
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-warning"
+                        onclick="testDetection()"
+                    >
+                        <i class="fas fa-play"></i> Test Nhận Diện
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Management -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-database mr-2"></i>
+                    Quản Lý Cơ Sở Dữ Liệu
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-info"
+                                ><i class="fas fa-list"></i
+                            ></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Tổng Bản Ghi</span>
+                                <span class="info-box-number" id="total-records"
+                                    >Loading...</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-success"
+                                ><i class="fas fa-hdd"></i
+                            ></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Kích Thước DB</span>
+                                <span class="info-box-number" id="db-size"
+                                    >Loading...</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-warning"
+                                ><i class="fas fa-images"></i
+                            ></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Ảnh Lưu Trữ</span>
+                                <span class="info-box-number" id="stored-images"
+                                    >Loading...</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-danger"
+                                ><i class="fas fa-calendar"></i
+                            ></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Sao Lưu Cuối</span>
+                                <span class="info-box-number" id="last-backup"
+                                    >Chưa có</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group" role="group">
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                onclick="backupDatabase()"
+                            >
+                                <i class="fas fa-download"></i> Sao Lưu DB
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-warning"
+                                onclick="optimizeDatabase()"
+                            >
+                                <i class="fas fa-tools"></i> Tối Ưu DB
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-info"
+                                onclick="exportData()"
+                            >
+                                <i class="fas fa-file-export"></i> Xuất Dữ Liệu
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                onclick="viewLogs()"
+                            >
+                                <i class="fas fa-file-alt"></i> Xem Logs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Information -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Thông Tin Hệ Thống
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Phiên Bản Hệ Thống:</strong></td>
+                                <td>1.0.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Python Version:</strong></td>
+                                <td id="python-version">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Flask Version:</strong></td>
+                                <td id="flask-version">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Database Type:</strong></td>
+                                <td>PostgreSQL</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Thời Gian Khởi Động:</strong></td>
+                                <td id="uptime">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Bộ Nhớ Sử Dụng:</strong></td>
+                                <td id="memory-usage">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CPU Usage:</strong></td>
+                                <td id="cpu-usage">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Disk Space:</strong></td>
+                                <td id="disk-space">Loading...</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block page_scripts %}
+<script>
+    $(document).ready(function () {
+        // Update confidence value display
+        $("#detection-confidence").on("input", function () {
+            $("#confidence-value").text($(this).val() + "%");
+        });
+
+        // Load system info
+        loadSystemInfo();
+
+        // Auto-refresh system stats every 30 seconds
+        setInterval(loadSystemInfo, 30000);
+    });
+
+    // Form submissions
+    $("#system-settings-form").on("submit", function (e) {
+        e.preventDefault();
+        saveSystemSettings();
+    });
+
+    $("#detection-settings-form").on("submit", function (e) {
+        e.preventDefault();
+        saveDetectionSettings();
+    });
+
+    function saveSystemSettings() {
+        // Collect form data
+        const settings = {
+            parking_capacity: $("#parking-capacity").val(),
+            detection_confidence: $("#detection-confidence").val(),
+            auto_cleanup: $("#auto-cleanup").val(),
+            email_notifications: $("#email-notifications").is(":checked"),
+            auto_backup: $("#auto-backup").is(":checked"),
+        };
+
+        // Send to server
+        $.post("/api/save-system-settings", settings)
+            .done(function (response) {
+                toastr.success("Cài đặt hệ thống đã được lưu!", "Thành công");
+            })
+            .fail(function () {
+                toastr.error("Lỗi khi lưu cài đặt!", "Lỗi");
+            });
+    }
+
+    function saveDetectionSettings() {
+        const settings = {
+            model_path: $("#model-path").val(),
+            image_size: $("#image-size").val(),
+            max_detections: $("#max-detections").val(),
+            save_cropped: $("#save-cropped").is(":checked"),
+            debug_mode: $("#debug-mode").is(":checked"),
+        };
+
+        $.post("/api/save-detection-settings", settings)
+            .done(function (response) {
+                toastr.success("Cài đặt nhận diện đã được lưu!", "Thành công");
+            })
+            .fail(function () {
+                toastr.error("Lỗi khi lưu cài đặt!", "Lỗi");
+            });
+    }
+
+    function loadSystemInfo() {
+        $.get("/api/system-info")
+            .done(function (data) {
+                $("#total-records").text(data.total_records || 0);
+                $("#db-size").text(data.db_size || "N/A");
+                $("#stored-images").text(data.stored_images || 0);
+                $("#python-version").text(data.python_version || "N/A");
+                $("#flask-version").text(data.flask_version || "N/A");
+                $("#uptime").text(data.uptime || "N/A");
+                $("#memory-usage").text(data.memory_usage || "N/A");
+                $("#cpu-usage").text(data.cpu_usage || "N/A");
+                $("#disk-space").text(data.disk_space || "N/A");
+            })
+            .fail(function () {
+                console.log("Error loading system info");
+            });
+    }
+
+    function browseModel() {
+        toastr.info("Chức năng duyệt file sẽ được phát triển", "Thông báo");
+    }
+
+    function testDetection() {
+        toastr.info("Đang test mô hình nhận diện...", "Thông báo");
+        // Implement detection test
+    }
+
+    function backupDatabase() {
+        if (confirm("Bạn có chắc muốn sao lưu cơ sở dữ liệu?")) {
+            toastr.info("Đang thực hiện sao lưu...", "Thông báo");
+            // Implement backup
+        }
+    }
+
+    function optimizeDatabase() {
+        if (
+            confirm(
+                "Bạn có chắc muốn tối ưu cơ sở dữ liệu? Quá trình này có thể mất vài phút."
+            )
+        ) {
+            toastr.info("Đang tối ưu cơ sở dữ liệu...", "Thông báo");
+            // Implement optimization
+        }
+    }
+
+    function exportData() {
+        toastr.info("Đang chuẩn bị xuất dữ liệu...", "Thông báo");
+        // Implement data export
+    }
+
+    function viewLogs() {
+        window.open("/logs", "_blank");
+    }
+</script>
+{% endblock %}
