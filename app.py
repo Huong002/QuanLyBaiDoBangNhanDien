@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from database.detect_service import insert_np, get_history, get_province , check_np_status, check_np
 from utils.image_processing import detect_plate_yolo
 from models.user import db, User
@@ -37,19 +37,39 @@ def index():
             Numberplate.status == 1
         ).count()
         
-        # Xe ra hôm nay (giả sử có trường updated_at khi xe ra)
-        cars_out_today = 0  # Cần implement logic xe ra
+        # Xe ra hôm nay (dựa trên date_out nếu có)
+        cars_out_today = Numberplate.query.filter(
+            db.func.date(Numberplate.date_out) == today
+        ).count()
         
         # Chỗ trống (giả sử tổng chỗ là 200)
         total_spots = 200
         available_spots = total_spots - total_cars
-        
+
+        # Lịch sử nhận diện gần đây
+        recent_history = Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
+
+        # Dữ liệu tuần (7 ngày gần nhất)
+        week_ago = today - timedelta(days=6)
+        weekly_data = []
+        for i in range(7):
+            day = week_ago + timedelta(days=i)
+            count = Numberplate.query.filter(
+                db.func.date(Numberplate.created_at) == day
+            ).count()
+            weekly_data.append({
+                'date': day.strftime('%d/%m'),
+                'count': count
+            })
+
         return render_template('dashboard.html', 
                              total_cars=total_cars,
                              cars_in_today=cars_in_today,
                              cars_out_today=cars_out_today,
                              available_spots=available_spots,
-                             total_records=total_records)
+                             total_records=total_records,
+                             recent_history=recent_history,
+                             weekly_data=weekly_data)
     except Exception as e:
         return f"Lỗi: {e}", 500
 
@@ -59,7 +79,15 @@ def detect_page():
     try:
         # Lấy lịch sử nhận diện gần đây
         recent_history = Numberplate.query.order_by(Numberplate.created_at.desc()).limit(10).all()
-        return render_template('detect.html', history=recent_history)
+        history_data = [{
+            'id': record.id,
+            'plate_text': record.number_plate,
+            'created_at': record.created_at.strftime('%H:%M:%S %d/%m/%Y') if record.created_at else None,
+            'plate_image': None,
+            'confidence': None,
+            'status': record.status
+        } for record in recent_history]
+        return render_template('detect.html', history=history_data)
     except Exception as e:
         return f"Lỗi: {e}", 500
 
@@ -263,8 +291,8 @@ def detect_plate():
             recent_history = Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
             history_data = [{
                 'id': record.id,
-                'plate_text': record.plate_text,
-                'created_at': record.created_at.strftime('%H:%M:%S %d/%m/%Y'),
+                'plate_text': record.number_plate,
+                'created_at': record.created_at.strftime('%H:%M:%S %d/%m/%Y') if record.created_at else None,
                 'status': record.status
             } for record in recent_history]
             

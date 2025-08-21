@@ -42,20 +42,27 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
                             <td>{{ loop.index }}</td>
                             <td>
                                 <span class="badge badge-primary"
-                                    >{{ vehicle.plate_text }}</span
+                                    >{{ vehicle.number_plate }}</span
                                 >
                             </td>
                             <td>
-                                {{ vehicle.created_at.strftime('%H:%M:%S
-                                %d/%m/%Y') }}
+                                {% if vehicle.created_at %} {{
+                                vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y')
+                                }} {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
                             </td>
                             <td id="duration-{{ vehicle.id }}">
                                 <script>
-                                    document.getElementById(
-                                        "duration-{{ vehicle.id }}"
-                                    ).innerHTML = calculateDuration(
-                                        "{{ vehicle.created_at.isoformat() }}"
-                                    );
+                                    (function(){
+                                        const el = document.getElementById('duration-{{ vehicle.id }}');
+                                        const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
+                                        if(created){
+                                            el.innerHTML = calculateDuration(created);
+                                        } else {
+                                            el.innerHTML = '<span class="text-muted">N/A</span>';
+                                        }
+                                    })();
                                 </script>
                             </td>
                             <td>
@@ -189,10 +196,15 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
     }
 
     function updateAllDurations() {
-      {% for vehicle in vehicles %}
-      document.getElementById('duration-{{ vehicle.id }}').innerHTML =
-        calculateDuration('{{ vehicle.created_at.isoformat() }}');
-      {% endfor %}
+            {% for vehicle in vehicles %}
+            (function(){
+                const el = document.getElementById('duration-{{ vehicle.id }}');
+        const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
+                if(created){
+                    el.innerHTML = calculateDuration(created);
+                }
+            })();
+            {% endfor %}
     }
 
     function refreshData() {
