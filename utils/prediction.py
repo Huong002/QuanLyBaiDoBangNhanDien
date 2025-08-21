@@ -23,11 +23,21 @@ def train_model(csv_path='D:/Dthu/heN3/machineLearning/BaiDoXe/utils/dataset.csv
 model = train_model(csv_path='utils/dataset.csv')
 
 def du_doan_so_xe(thoi_gian, model=model):
-    thoi_gian = pd.to_datetime(thoi_gian)
-    hour = thoi_gian.hour
-    day_of_week = thoi_gian.dayofweek
-    is_weekend = 1 if day_of_week >= 5 else 0
-    X_new = pd.DataFrame([[hour, day_of_week, is_weekend]], columns=["hour", "day_of_week", "is_weekend"])
-    so_xe = model.predict(X_new)[0]
-    return round(so_xe)
+    try:
+        thoi_gian = pd.to_datetime(thoi_gian)
+        hour = thoi_gian.hour
+        day_of_week = thoi_gian.dayofweek
+        is_weekend = 1 if day_of_week >= 5 else 0
+        X_new = pd.DataFrame([[hour, day_of_week, is_weekend]], columns=["hour", "day_of_week", "is_weekend"])
+        so_xe = model.predict(X_new)[0]
+        return round(so_xe)
+    except Exception as e:
+        print(f"Lỗi dự đoán: {e}")
+        return 0
 
+# Hàm dự đoán theo giờ trong một ngày
+def predict_hourly(date_str, model=model):
+    date = pd.to_datetime(date_str)
+    hourly_labels = [f"{h}:00" for h in range(24)]
+    hourly_predictions = [du_doan_so_xe(f"{date_str}T{h}:00", model) for h in range(24)]
+    return {"labels": hourly_labels, "data": hourly_predictions}

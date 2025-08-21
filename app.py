@@ -8,7 +8,7 @@ from utils.image_processing import detect_plate_yolo
 from models.user import db, User
 from models.number_plated import db, Numberplate
 import config.database as db_config
-from utils.prediction import du_doan_so_xe 
+from utils.prediction import du_doan_so_xe
 
 import os
 app = Flask(__name__)
@@ -323,14 +323,26 @@ def detect_plate():
             pass
 
 # ham du doan so luong xe vao
+# @app.route('/predict', methods=['GET', 'POST'])
+# def predict():
+#     prediction = None
+#     if request.method == 'POST':
+#         thoi_gian = request.form.get('datetime')
+#         if thoi_gian:
+#             prediction = du_doan_so_xe(thoi_gian)
+#     return render_template('prediction.html', prediction=prediction)
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
     prediction = None
+    from datetime import datetime, timedelta
+    week_labels = [(datetime.now() + timedelta(days=i)).strftime('%d/%m') for i in range(7)]
+    week_predictions = [du_doan_so_xe((datetime.now() + timedelta(days=i)).strftime('%Y-%m-%dT%H:%M')) for i in range(7)]
     if request.method == 'POST':
         thoi_gian = request.form.get('datetime')
         if thoi_gian:
             prediction = du_doan_so_xe(thoi_gian)
-    return render_template('prediction.html', prediction=prediction)
+    return render_template('prediction.html', prediction=prediction, week_labels=week_labels, week_predictions=week_predictions)
+
 
 if __name__ == '__main__':
     with app.app_context():
