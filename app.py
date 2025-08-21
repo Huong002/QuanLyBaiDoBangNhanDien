@@ -8,6 +8,7 @@ from utils.image_processing import detect_plate_yolo
 from models.user import db, User
 from models.number_plated import db, Numberplate
 import config.database as db_config
+from utils.prediction import du_doan_so_xe 
 
 import os
 app = Flask(__name__)
@@ -320,6 +321,16 @@ def detect_plate():
             os.unlink(image_path)
         except:
             pass
+
+# ham du doan so luong xe vao
+@app.route('/predict', methods=['GET', 'POST'])
+def predict():
+    prediction = None
+    if request.method == 'POST':
+        thoi_gian = request.form.get('datetime')
+        if thoi_gian:
+            prediction = du_doan_so_xe(thoi_gian)
+    return render_template('prediction.html', prediction=prediction)
 
 if __name__ == '__main__':
     with app.app_context():

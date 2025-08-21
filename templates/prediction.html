@@ -1,0 +1,34 @@
+{% extends "layout.html" %} {% block title %}Dự Báo Số Xe Vào Bãi{% endblock %}
+{% block page_title %}Dự Báo Số Xe Vào Bãi{% endblock %} {% block main_content
+%}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-info text-white">
+        <h4 class="mb-0">Dự Báo Số Xe Vào Bãi</h4>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('predict') }}">
+          <div class="form-group">
+            <label for="datetime">Chọn ngày & giờ dự báo</label>
+            <input
+              type="datetime-local"
+              class="form-control"
+              id="datetime"
+              name="datetime"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary mt-2">Dự Báo</button>
+        </form>
+        {% if prediction is not none %}
+        <div class="alert alert-success mt-4">
+          <strong>Kết quả dự báo:</strong> Số xe dự kiến:
+          <span class="font-weight-bold">{{ prediction }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

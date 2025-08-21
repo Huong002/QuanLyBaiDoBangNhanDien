@@ -1,0 +1,33 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+def train_model(csv_path='D:/Dthu/heN3/machineLearning/BaiDoXe/utils/dataset.csv', carpark_name=None):
+    df = pd.read_csv(csv_path)
+    # Tự động nhận diện tên cột thời gian
+    time_col = 'LastUpdated'
+    if time_col not in df.columns:
+        raise Exception('Không tìm thấy cột LastUpdated trong dataset!')
+    df[time_col] = pd.to_datetime(df[time_col])
+    df['hour'] = df[time_col].dt.hour
+    df['day_of_week'] = df[time_col].dt.dayofweek
+    df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x >= 5 else 0)
+    # Không lọc theo CarPark, chỉ dùng toàn bộ dữ liệu
+    X = df[["hour", "day_of_week", "is_weekend"]]
+    y = df["Occupancy"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    return model
+
+model = train_model(csv_path='utils/dataset.csv')
+
+def du_doan_so_xe(thoi_gian, model=model):
+    thoi_gian = pd.to_datetime(thoi_gian)
+    hour = thoi_gian.hour
+    day_of_week = thoi_gian.dayofweek
+    is_weekend = 1 if day_of_week >= 5 else 0
+    X_new = pd.DataFrame([[hour, day_of_week, is_weekend]], columns=["hour", "day_of_week", "is_weekend"])
+    so_xe = model.predict(X_new)[0]
+    return round(so_xe)
+
