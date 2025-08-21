@@ -42,13 +42,24 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
                   >{{ vehicle.number_plate }}</span
                 >
               </td>
-              <td>{{ vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y') }}</td>
               <td>
-                <span
-                  class="badge badge-info"
-                  data-datein="{{ vehicle.created_at.isoformat() }}"
-                  >--</span
-                >
+                {% if vehicle.created_at %} {{
+                vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y') }} {% else %}
+                <span class="text-muted">N/A</span>
+                {% endif %}
+              </td>
+              <td id="duration-{{ vehicle.id }}">
+                <script>
+                  (function(){
+                      const el = document.getElementById('duration-{{ vehicle.id }}');
+                      const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
+                      if(created){
+                          el.innerHTML = calculateDuration(created);
+                      } else {
+                          el.innerHTML = '<span class="text-muted">N/A</span>';
+                      }
+                  })();
+                </script>
               </td>
               <td>
                 <span class="badge badge-success">Trong Bãi</span>
@@ -56,7 +67,7 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
               <td>
                 <button
                   class="btn btn-warning btn-sm"
-                  onclick="checkoutVehicle('{{ vehicle.number_plate }}')"
+                  onclick="checkoutVehicle('{{ vehicle.plate_text }}')"
                 >
                   <i class="fas fa-sign-out-alt"></i> Cho Ra
                 </button>
@@ -152,12 +163,17 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
     return `${hours}h ${minutes}p`;
   }
 
-  function updateAllDurations() {
-    $("[data-datein]").each(function () {
-      const dateIn = $(this).attr("data-datein");
-      $(this).text(calcDuration(dateIn));
-    });
-  }
+    function updateAllDurations() {
+            {% for vehicle in vehicles %}
+            (function(){
+                const el = document.getElementById('duration-{{ vehicle.id }}');
+        const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
+                if(created){
+                    el.innerHTML = calculateDuration(created);
+                }
+            })();
+            {% endfor %}
+    }
 
   function refreshData() {
     location.reload();

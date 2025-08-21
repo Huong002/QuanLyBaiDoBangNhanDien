@@ -108,8 +108,11 @@ breadcrumb %}
                                 >
                             </td>
                             <td>
-                                {{ record.created_at.strftime('%H:%M:%S
-                                %d/%m/%Y') }}
+                                {% if record.created_at %} {{
+                                record.created_at.strftime('%H:%M:%S %d/%m/%Y')
+                                }} {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if record.status == 1 %}
