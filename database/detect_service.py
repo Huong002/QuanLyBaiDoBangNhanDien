@@ -10,9 +10,12 @@ def check_np(number_plate):
         print(f"Lỗi check_np: {e}")
         return 0
 
+# chèn bien so vao csdl
 def insert_np(number_plate):
-    try:
-        province = get_province(number_plate)
+    count = Numberplate.query.filter_by(number_plate=number_plate).count()
+    province = get_province(number_plate)
+    if count % 2 == 0:
+        # Chẵn: cho vào bãi (status=1)
         new_plate = Numberplate(
             number_plate=number_plate,
             status=1,
@@ -20,13 +23,22 @@ def insert_np(number_plate):
             date_in=datetime.utcnow()
         )
         db.session.add(new_plate)
+        print("Xe vào bãi")
         db.session.commit()
-        return True
-    except Exception as e:
-        print(f"Lỗi insert_np: {e}")
-        db.session.rollback()
-        return False
+        return 'in'
+    else:
+        # Lẻ: cập nhật bản ghi mới nhất status=0, date_out=now
+        latest = Numberplate.query.filter_by(number_plate=number_plate).order_by(Numberplate.date_in.desc()).first()
+        if latest:
+            latest.status = 0
+            latest.date_out = datetime.utcnow()
+            print("Xe ra bãi")
+            db.session.commit()
+            return 'out'
+        else:
+            return False
 
+# lấy tình thành
 def get_province(number_plate):
     province_codes = {
         '11': 'Cao Bằng', '12': 'Lạng Sơn', '13': 'Quảng Ninh', '14': 'Hải Phòng',
@@ -44,6 +56,7 @@ def get_province(number_plate):
         return province_codes.get(code, 'Không xác định')
     return 'Không xác định'
 
+# check trang thai
 def check_np_status(number_plate):
     try:
         result = Numberplate.query.filter_by(number_plate=number_plate)\
@@ -55,11 +68,12 @@ def check_np_status(number_plate):
         print(f"Lỗi check_np_status: {e}")
         return None
 
+# cap nhap
 def update_np(plate_id):
     try:
         plate = Numberplate.query.get(plate_id)
         if plate:
-            plate.status = 0  # 0: xe ra bãi
+            plate.status = 0  
             plate.date_out = datetime.utcnow()
             db.session.commit()
             return True
@@ -69,6 +83,7 @@ def update_np(plate_id):
         db.session.rollback()
         return False
 
+# lấy lich su
 def get_history(number_plate):
     try:
         records = Numberplate.query.filter_by(number_plate=number_plate)\
@@ -86,6 +101,7 @@ def get_history(number_plate):
         print(f"Lỗi get_history: {e}")
         return []
 
+# kiem tra trong bai
 def is_vehicle_in_parking(number_plate):
     try:
         latest_record = Numberplate.query.filter_by(number_plate=number_plate)\

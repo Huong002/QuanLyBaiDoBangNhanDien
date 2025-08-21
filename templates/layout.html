@@ -30,6 +30,8 @@
             rel="stylesheet"
             href="{{ url_for('static', filename='style.css') }}"
         />
+    <!-- Toastr CSS for notifications -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='plugins/toastr/toastr.min.css') }}" />
         {% block additional_css %}{% endblock %}
     </head>
     <body
@@ -509,6 +511,9 @@
         <script src="{{ url_for('static', filename='plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
         <!-- AdminLTE App -->
         <script src="{{ url_for('static', filename='dist/js/adminlte.js') }}"></script>
+
+    <!-- Toastr JS for notifications -->
+    <script src="{{ url_for('static', filename='plugins/toastr/toastr.min.js') }}"></script>
 
         <!-- PAGE PLUGINS -->
         {% block page_plugins %}

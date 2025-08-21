@@ -238,19 +238,14 @@ def detect_plate():
         
         if number_plate:
             province = get_province(number_plate)
-            check = check_np(number_plate)
-            
-            if check == 0:
-                insert_np(number_plate)
+            result = insert_np(number_plate)
+            if result == 'in':
                 status = "Xe vào bãi đỗ"
+            elif result == 'out':
+                status = "Xe ra khỏi bãi"
             else:
-                check2 = check_np_status(number_plate)
-                if check2 and check2[2] == 1:
-                    status = "Xe đang trong bãi"
-                else:
-                    insert_np(number_plate)
-                    status = "Xe vào bãi đỗ"
-            
+                status = "Không xác định trạng thái"
+
             # Lưu ảnh crop biển số vào static để trả về giao diện
             plate_image_url = None
             if plate_crop:
@@ -258,23 +253,23 @@ def detect_plate():
                 save_path = os.path.join('static', 'image', save_name)
                 plate_crop.save(save_path)
                 plate_image_url = url_for('static', filename=f'image/{save_name}')
-            
+
             # Lấy lịch sử mới nhất
             recent_history = Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
             history_data = [{
                 'id': record.id,
-                'plate_text': record.plate_text,
+                'number_plate': record.number_plate,
                 'created_at': record.created_at.strftime('%H:%M:%S %d/%m/%Y'),
                 'status': record.status
             } for record in recent_history]
-            
+
             return jsonify({
                 "success": True,
-                "plate_text": number_plate,
+                "number_plate": number_plate,
                 "plate_image": plate_image_url,
                 "province": province,
                 "status": status,
-                "confidence": 0.85,  # Giả sử confidence score
+                "confidence": 0.85,
                 "message": "Nhận diện thành công",
                 "history": history_data
             })
@@ -285,6 +280,8 @@ def detect_plate():
             })
             
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "message": f"Lỗi xử lý: {str(e)}"

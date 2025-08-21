@@ -104,7 +104,7 @@ breadcrumb %}
                             <td>{{ loop.index }}</td>
                             <td>
                                 <span class="badge badge-primary"
-                                    >{{ record.plate_text }}</span
+                                    >{{ record.number_plate }}</span
                                 >
                             </td>
                             <td>
@@ -189,8 +189,8 @@ breadcrumb %}
             <div class="inner">
                 <h3 id="unique-vehicles">
                     {% set unique_plates = [] %} {% for record in history %} {%
-                    if record.plate_text not in unique_plates %} {% set _ =
-                    unique_plates.append(record.plate_text) %} {% endif %} {%
+                    if record.number_plate not in unique_plates %} {% set _ =
+                    unique_plates.append(record.number_plate) %} {% endif %} {%
                     endfor %} {{ unique_plates|length }}
                 </h3>
                 <p>Xe Khác Nhau</p>

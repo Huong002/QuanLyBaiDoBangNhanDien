@@ -5,141 +5,131 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
 <li class="breadcrumb-item active">Xe Trong Bãi</li>
 {% endblock %} {% block main_content %}
 <div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Danh Sách Xe Đang Trong Bãi</h3>
-                <div class="card-tools">
-                    <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        onclick="refreshData()"
-                    >
-                        <i class="fas fa-sync-alt"></i> Làm Mới
-                    </button>
-                </div>
-            </div>
-            <!-- /.card-header -->
-            <div class="card-body">
-                {% if vehicles %}
-                <table
-                    class="table table-bordered table-striped"
-                    id="vehicles-table"
-                >
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Biển Số</th>
-                            <th>Thời Gian Vào</th>
-                            <th>Thời Gian Đỗ</th>
-                            <th>Trạng Thái</th>
-                            <th>Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for vehicle in vehicles %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>
-                                <span class="badge badge-primary"
-                                    >{{ vehicle.plate_text }}</span
-                                >
-                            </td>
-                            <td>
-                                {{ vehicle.created_at.strftime('%H:%M:%S
-                                %d/%m/%Y') }}
-                            </td>
-                            <td id="duration-{{ vehicle.id }}">
-                                <script>
-                                    document.getElementById(
-                                        "duration-{{ vehicle.id }}"
-                                    ).innerHTML = calculateDuration(
-                                        "{{ vehicle.created_at.isoformat() }}"
-                                    );
-                                </script>
-                            </td>
-                            <td>
-                                <span class="badge badge-success"
-                                    >Trong Bãi</span
-                                >
-                            </td>
-                            <td>
-                                <button
-                                    class="btn btn-warning btn-sm"
-                                    onclick="checkoutVehicle('{{ vehicle.plate_text }}')"
-                                >
-                                    <i class="fas fa-sign-out-alt"></i> Cho Ra
-                                </button>
-                                <button
-                                    class="btn btn-info btn-sm"
-                                    onclick="viewDetails('{{ vehicle.id }}')"
-                                >
-                                    <i class="fas fa-eye"></i> Chi Tiết
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div class="text-center text-muted">
-                    <i class="fas fa-car fa-3x mb-3"></i>
-                    <p>Hiện tại không có xe nào trong bãi</p>
-                </div>
-                {% endif %}
-            </div>
-            <!-- /.card-body -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Danh Sách Xe Đang Trong Bãi</h3>
+        <div class="card-tools">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            onclick="refreshData()"
+          >
+            <i class="fas fa-sync-alt"></i> Làm Mới
+          </button>
         </div>
-        <!-- /.card -->
+      </div>
+      <!-- /.card-header -->
+      <div class="card-body">
+        {% if vehicles %}
+        <table class="table table-bordered table-striped" id="vehicles-table">
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Biển Số</th>
+              <th>Thời Gian Vào</th>
+              <th>Thời Gian Đỗ</th>
+              <th>Trạng Thái</th>
+              <th>Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vehicle in vehicles %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>
+                <span class="badge badge-primary"
+                  >{{ vehicle.number_plate }}</span
+                >
+              </td>
+              <td>{{ vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y') }}</td>
+              <td>
+                <span
+                  class="badge badge-info"
+                  data-datein="{{ vehicle.created_at.isoformat() }}"
+                  >--</span
+                >
+              </td>
+              <td>
+                <span class="badge badge-success">Trong Bãi</span>
+              </td>
+              <td>
+                <button
+                  class="btn btn-warning btn-sm"
+                  onclick="checkoutVehicle('{{ vehicle.number_plate }}')"
+                >
+                  <i class="fas fa-sign-out-alt"></i> Cho Ra
+                </button>
+                <button
+                  class="btn btn-info btn-sm"
+                  onclick="viewDetails('{{ vehicle.id }}')"
+                >
+                  <i class="fas fa-eye"></i> Chi Tiết
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted">
+          <i class="fas fa-car fa-3x mb-3"></i>
+          <p>Hiện tại không có xe nào trong bãi</p>
+        </div>
+        {% endif %}
+      </div>
+      <!-- /.card-body -->
     </div>
+    <!-- /.card -->
+  </div>
 </div>
 
 <!-- Statistics Cards -->
 <div class="row">
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-info">
-            <div class="inner">
-                <h3>{{ vehicles|length }}</h3>
-                <p>Xe Trong Bãi</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-car"></i>
-            </div>
-        </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ vehicles|length }}</h3>
+        <p>Xe Trong Bãi</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-car"></i>
+      </div>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h3>{{ 200 - vehicles|length }}</h3>
-                <p>Chỗ Trống</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-parking"></i>
-            </div>
-        </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ 200 - vehicles|length }}</h3>
+        <p>Chỗ Trống</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-parking"></i>
+      </div>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h3>85%</h3>
-                <p>Tỷ Lệ Sử Dụng</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-percentage"></i>
-            </div>
-        </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{(200 - vehicles|length)/200 * 100}}%</h3>
+        <p>Tỷ Lệ Sử Dụng</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-percentage"></i>
+      </div>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-danger">
-            <div class="inner">
-                <h3>200</h3>
-                <p>Tổng Chỗ Đỗ</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-warehouse"></i>
-            </div>
-        </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-danger">
+      <div class="inner">
+        <h3>200</h3>
+        <p>Tổng Chỗ Đỗ</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-warehouse"></i>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %} {% block page_plugins %}
 <!-- DataTables  & Plugins -->
@@ -147,69 +137,67 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
 <script src="{{ url_for('static', filename='plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 {% endblock %} {% block additional_css %}
 <link
-    rel="stylesheet"
-    href="{{ url_for('static', filename='plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}"
+  rel="stylesheet"
+  href="{{ url_for('static', filename='plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}"
 />
 {% endblock %} {% block page_scripts %}
 <script>
-    $(document).ready(function() {
-      // Initialize DataTable
-      $('#vehicles-table').DataTable({
-        "responsive": true,
-        "lengthChange": false,
-        "autoWidth": false,
-        "language": {
-          "search": "Tìm kiếm:",
-          "lengthMenu": "Hiển thị _MENU_ mục",
-          "info": "Hiển thị _START_ đến _END_ của _TOTAL_ mục",
-          "infoEmpty": "Hiển thị 0 đến 0 của 0 mục",
-          "infoFiltered": "(lọc từ _MAX_ tổng số mục)",
-          "paginate": {
-            "first": "Đầu",
-            "last": "Cuối",
-            "next": "Tiếp",
-            "previous": "Trước"
-          }
-        }
-      });
+  function calcDuration(dateInStr) {
+    const dateIn = new Date(dateInStr);
+    const now = new Date();
+    let diffMs = now - dateIn;
+    if (diffMs < 0) return "--";
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}p`;
+  }
 
-      // Update duration every minute
-      setInterval(updateAllDurations, 60000);
+  function updateAllDurations() {
+    $("[data-datein]").each(function () {
+      const dateIn = $(this).attr("data-datein");
+      $(this).text(calcDuration(dateIn));
     });
+  }
 
-    function calculateDuration(createdAt) {
-      const now = new Date();
-      const created = new Date(createdAt);
-      const diff = now - created;
+  function refreshData() {
+    location.reload();
+  }
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      return `${hours}h ${minutes}p`;
+  function checkoutVehicle(plateText) {
+    if (confirm(`Xác nhận cho xe ${plateText} ra khỏi bãi?`)) {
+      // Implement checkout logic
+      toastr.success(`Xe ${plateText} đã ra khỏi bãi`, "Thành công");
+      setTimeout(() => location.reload(), 1000);
     }
+  }
 
-    function updateAllDurations() {
-      {% for vehicle in vehicles %}
-      document.getElementById('duration-{{ vehicle.id }}').innerHTML =
-        calculateDuration('{{ vehicle.created_at.isoformat() }}');
-      {% endfor %}
-    }
+  function viewDetails(vehicleId) {
+    // Implement view details modal or redirect
+    toastr.info("Chức năng xem chi tiết sẽ được phát triển", "Thông báo");
+  }
 
-    function refreshData() {
-      location.reload();
-    }
-
-    function checkoutVehicle(plateText) {
-      if (confirm(`Xác nhận cho xe ${plateText} ra khỏi bãi?`)) {
-        // Implement checkout logic
-        toastr.success(`Xe ${plateText} đã ra khỏi bãi`, 'Thành công');
-        setTimeout(() => location.reload(), 1000);
-      }
-    }
-
-    function viewDetails(vehicleId) {
-      // Implement view details modal or redirect
-      toastr.info('Chức năng xem chi tiết sẽ được phát triển', 'Thông báo');
-    }
+  $(document).ready(function () {
+    // Initialize DataTable
+    $("#vehicles-table").DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      language: {
+        search: "Tìm kiếm:",
+        lengthMenu: "Hiển thị _MENU_ mục",
+        info: "Hiển thị _START_ đến _END_ của _TOTAL_ mục",
+        infoEmpty: "Hiển thị 0 đến 0 của 0 mục",
+        infoFiltered: "(lọc từ _MAX_ tổng số mục)",
+        paginate: {
+          first: "Đầu",
+          last: "Cuối",
+          next: "Tiếp",
+          previous: "Trước",
+        },
+      },
+    });
+    updateAllDurations();
+    setInterval(updateAllDurations, 60000);
+  });
 </script>
 {% endblock %}
