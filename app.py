@@ -8,7 +8,7 @@ from utils.image_processing import detect_plate_yolo
 from models.user import db, User
 from models.number_plated import db, Numberplate
 import config.database as db_config
-from utils.prediction import du_doan_so_xe
+from utils.prediction import train_model, du_doan_so_xe, predict_hourly
 
 import os
 app = Flask(__name__)
@@ -331,17 +331,38 @@ def detect_plate():
 #         if thoi_gian:
 #             prediction = du_doan_so_xe(thoi_gian)
 #     return render_template('prediction.html', prediction=prediction)
+
+# Khởi tạo model mặc định (CSV)
+model = train_model(data_source='csv', csv_path='utils/dataset.csv', app=app)
+
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
+    global model
     prediction = None
+    error = None
     from datetime import datetime, timedelta
+
+    # Ưu tiên lấy data_source từ query string (GET), nếu không có thì lấy từ form (POST), nếu không có thì mặc định là csv
+    data_source = request.args.get('data_source') or request.form.get('data_source') or 'csv'
+
+    # Huấn luyện lại model theo nguồn dữ liệu mỗi lần load trang hoặc submit
+    try:
+        model = train_model(data_source=data_source, csv_path='utils/dataset.csv', app=app)
+    except Exception as e:
+        error = f"Lỗi: {str(e)}"
+
     week_labels = [(datetime.now() + timedelta(days=i)).strftime('%d/%m') for i in range(7)]
-    week_predictions = [du_doan_so_xe((datetime.now() + timedelta(days=i)).strftime('%Y-%m-%dT%H:%M')) for i in range(7)]
+    week_predictions = [du_doan_so_xe((datetime.now() + timedelta(days=i)).strftime('%Y-%m-%dT%H:%M'), model) for i in range(7)]
+
     if request.method == 'POST':
         thoi_gian = request.form.get('datetime')
-        if thoi_gian:
-            prediction = du_doan_so_xe(thoi_gian)
-    return render_template('prediction.html', prediction=prediction, week_labels=week_labels, week_predictions=week_predictions)
+        try:
+            if thoi_gian:
+                prediction = du_doan_so_xe(thoi_gian, model)
+        except Exception as e:
+            error = f"Lỗi: {str(e)}"
+
+    return render_template('prediction.html', prediction=prediction, week_labels=week_labels, week_predictions=week_predictions, data_source=data_source, error=error)
 
 
 if __name__ == '__main__':
