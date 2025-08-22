@@ -31,20 +31,24 @@
     <div class="col-md-4">
       <div class="card h-100">
         <div class="card-header bg-info text-white">
-          <h4 class="mb-0">Dự Báo Số Xe Vào Bãi</h4>
+          <h4 class="mb-0">Dự báo theo ngày</h4>
         </div>
         <div class="card-body">
             <div class="form-group">
-              <label for="datetime">Chọn ngày & giờ dự báo</label>
-              <input
-                type="datetime-local"
-                class="form-control"
-                id="datetime"
-                name="datetime"
-                required
-              />
+              <label for="datetime" class="mb-1">Chọn ngày & giờ dự báo</label>
+              <div class="d-flex align-items-center">
+                <input
+                  type="datetime-local"
+                  class="form-control mr-2"
+                  id="datetime"
+                  name="datetime"
+                  value="{{ datetime_value }}"
+                  required
+                  style="max-width: 220px;"
+                />
+                <button type="submit" class="btn btn-primary start-end ml-auto" style="margin-left:auto;">Dự Báo</button>
+              </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-2">Dự Báo</button>
           {% if prediction is not none %}
           <div class="alert alert-success mt-4">
             <strong>Kết quả dự báo:</strong> Số xe dự kiến:

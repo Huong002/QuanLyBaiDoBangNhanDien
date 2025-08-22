@@ -14,3 +14,10 @@ flask db migrate -m "Initial migration"
 - tổ chức ui
 # utils
 - định nghĩa hàm nhận dạng, đọc biển số và tiền xữ lí
+
+
+
+# chức năng tính phí tự động:
+mỗi lần cập nhập trạng thái xe từ 1 -> 0 thì trừ 1 ngàn vào tkhoan của người dừng
+1. chuẩn bị:
+s

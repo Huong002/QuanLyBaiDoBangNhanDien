@@ -332,7 +332,6 @@ def detect_plate():
 #             prediction = du_doan_so_xe(thoi_gian)
 #     return render_template('prediction.html', prediction=prediction)
 
-# Khởi tạo model mặc định (CSV)
 model = train_model(data_source='csv', csv_path='utils/dataset.csv', app=app)
 
 @app.route('/predict', methods=['GET', 'POST'])
@@ -342,7 +341,6 @@ def predict():
     error = None
     from datetime import datetime, timedelta
 
-    # Ưu tiên lấy data_source từ query string (GET), nếu không có thì lấy từ form (POST), nếu không có thì mặc định là csv
     data_source = request.args.get('data_source') or request.form.get('data_source') or 'csv'
 
     # Huấn luyện lại model theo nguồn dữ liệu mỗi lần load trang hoặc submit
@@ -354,15 +352,21 @@ def predict():
     week_labels = [(datetime.now() + timedelta(days=i)).strftime('%d/%m') for i in range(7)]
     week_predictions = [du_doan_so_xe((datetime.now() + timedelta(days=i)).strftime('%Y-%m-%dT%H:%M'), model) for i in range(7)]
 
+    datetime_value = ''
     if request.method == 'POST':
         thoi_gian = request.form.get('datetime')
+        datetime_value = thoi_gian
         try:
             if thoi_gian:
                 prediction = du_doan_so_xe(thoi_gian, model)
         except Exception as e:
             error = f"Lỗi: {str(e)}"
 
-    return render_template('prediction.html', prediction=prediction, week_labels=week_labels, week_predictions=week_predictions, data_source=data_source, error=error)
+    # Nếu là GET và có query param datetime thì cũng giữ lại
+    if request.method == 'GET':
+        datetime_value = request.args.get('datetime', '')
+
+    return render_template('prediction.html', prediction=prediction, week_labels=week_labels, week_predictions=week_predictions, data_source=data_source, error=error, datetime_value=datetime_value)
 
 
 if __name__ == '__main__':
