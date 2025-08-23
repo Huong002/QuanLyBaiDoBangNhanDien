@@ -256,13 +256,16 @@ def detect_plate():
         import uuid
         from PIL import Image
         
+        # Lấy thông tin OCR engine từ form (mặc định là PaddleOCR)
+        use_paddle_ocr = request.form.get('ocr_engine', 'paddle') == 'paddle'
+        
         # Lưu file ảnh tạm thời
         with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
             file.save(tmp.name)
             image_path = tmp.name
 
-        # Nhận diện biển số bằng YOLO và OCR
-        number_plate, plate_crop = detect_plate_yolo(image_path)
+        # Nhận diện biển số bằng YOLO và OCR đã chọn
+        number_plate, plate_crop = detect_plate_yolo(image_path, use_paddle_ocr=use_paddle_ocr)
         
         if number_plate:
             province = get_province(number_plate)

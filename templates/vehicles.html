@@ -5,94 +5,100 @@ endblock %} {% block page_title %}Xe Trong Bãi{% endblock %} {% block breadcrum
 <li class="breadcrumb-item active">Xe Trong Bãi</li>
 {% endblock %} {% block main_content %}
 <div class="row">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Danh Sách Xe Đang Trong Bãi</h3>
-        <div class="card-tools">
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            onclick="refreshData()"
-          >
-            <i class="fas fa-sync-alt"></i> Làm Mới
-          </button>
-        </div>
-      </div>
-      <!-- /.card-header -->
-      <div class="card-body">
-        {% if vehicles %}
-        <table class="table table-bordered table-striped" id="vehicles-table">
-          <thead>
-            <tr>
-              <th>STT</th>
-              <th>Biển Số</th>
-              <th>Thời Gian Vào</th>
-              <th>Thời Gian Đỗ</th>
-              <th>Trạng Thái</th>
-              <th>Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for vehicle in vehicles %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td>
-                <span class="badge badge-primary"
-                  >{{ vehicle.number_plate }}</span
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Danh Sách Xe Đang Trong Bãi</h3>
+                <div class="card-tools">
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        onclick="refreshData()"
+                    >
+                        <i class="fas fa-sync-alt"></i> Làm Mới
+                    </button>
+                </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                {% if vehicles %}
+                <table
+                    class="table table-bordered table-striped"
+                    id="vehicles-table"
                 >
-              </td>
-              <td>
-                {% if vehicle.created_at %} {{
-                vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y') }} {% else %}
-                <span class="text-muted">N/A</span>
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Biển Số</th>
+                            <th>Thời Gian Vào</th>
+                            <th>Thời Gian Đỗ</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <span class="badge badge-primary"
+                                    >{{ vehicle.number_plate }}</span
+                                >
+                            </td>
+                            <td>
+                                {% if vehicle.created_at %} {{
+                                vehicle.created_at.strftime('%H:%M:%S %d/%m/%Y')
+                                }} {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td id="duration-{{ vehicle.id }}">
+                                <script>
+                                    (function(){
+                                        const el = document.getElementById('duration-{{ vehicle.id }}');
+                                        const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
+                                        if(created){
+                                            el.innerHTML = calculateDuration(created);
+                                        } else {
+                                            el.innerHTML = '<span class="text-muted">N/A</span>';
+                                        }
+                                    })();
+                                </script>
+                            </td>
+                            <td>
+                                <span class="badge badge-success"
+                                    >Trong Bãi</span
+                                >
+                            </td>
+                            <td>
+                                <button
+                                    class="btn btn-warning btn-sm"
+                                    onclick="checkoutVehicle('{{ vehicle.plate_text }}')"
+                                >
+                                    <i class="fas fa-sign-out-alt"></i> Cho Ra
+                                </button>
+                                <button
+                                    class="btn btn-info btn-sm"
+                                    onclick="viewDetails('{{ vehicle.id }}')"
+                                >
+                                    <i class="fas fa-eye"></i> Chi Tiết
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-car fa-3x mb-3"></i>
+                    <p>Hiện tại không có xe nào trong bãi</p>
+                </div>
                 {% endif %}
-              </td>
-              <td id="duration-{{ vehicle.id }}">
-                <script>
-                  (function(){
-                      const el = document.getElementById('duration-{{ vehicle.id }}');
-                      const created = {{ (vehicle.created_at.isoformat() if vehicle.created_at else None)|tojson }};
-                      if(created){
-                          el.innerHTML = calculateDuration(created);
-                      } else {
-                          el.innerHTML = '<span class="text-muted">N/A</span>';
-                      }
-                  })();
-                </script>
-              </td>
-              <td>
-                <span class="badge badge-success">Trong Bãi</span>
-              </td>
-              <td>
-                <button
-                  class="btn btn-warning btn-sm"
-                  onclick="checkoutVehicle('{{ vehicle.plate_text }}')"
-                >
-                  <i class="fas fa-sign-out-alt"></i> Cho Ra
-                </button>
-                <button
-                  class="btn btn-info btn-sm"
-                  onclick="viewDetails('{{ vehicle.id }}')"
-                >
-                  <i class="fas fa-eye"></i> Chi Tiết
-                </button>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="text-center text-muted">
-          <i class="fas fa-car fa-3x mb-3"></i>
-          <p>Hiện tại không có xe nào trong bãi</p>
+            </div>
+            <!-- /.card-body -->
         </div>
-        {% endif %}
-      </div>
-      <!-- /.card-body -->
+        <!-- /.card -->
     </div>
-    <!-- /.card -->
-  </div>
 </div>
 
 <!-- Statistics Cards -->
