@@ -13,16 +13,28 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
             </div>
             <div class="card-body">
                 <div class="text-center mb-2">
-                    <video id="camera-video" autoplay playsinline style="width:100%;max-height:360px;background:#000"></video>
-                    <canvas id="camera-canvas" style="display:none"></canvas>
+                    <video
+                        id="camera-video"
+                        autoplay
+                        playsinline
+                        style="width: 100%; max-height: 360px; background: #000"
+                    ></video>
+                    <canvas id="camera-canvas" style="display: none"></canvas>
                 </div>
 
                 <div class="d-flex justify-content-between">
                     <div>
-                        <button id="start-camera" class="btn btn-success btn-sm">
+                        <button
+                            id="start-camera"
+                            class="btn btn-success btn-sm"
+                        >
                             <i class="fas fa-video"></i> Bắt đầu
                         </button>
-                        <button id="stop-camera" class="btn btn-danger btn-sm" disabled>
+                        <button
+                            id="stop-camera"
+                            class="btn btn-danger btn-sm"
+                            disabled
+                        >
                             <i class="fas fa-stop-circle"></i> Dừng
                         </button>
                     </div>
@@ -30,7 +42,8 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                         <button id="capture-now" class="btn btn-primary btn-sm">
                             <i class="fas fa-camera"></i> Chụp & Nhận diện
                         </button>
-                        <label class="ml-2">Tự động:
+                        <label class="ml-2"
+                            >Tự động:
                             <input id="auto-capture" type="checkbox" />
                         </label>
                     </div>
@@ -73,6 +86,25 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                         </div>
                     </div>
 
+                    <!-- OCR Engine Selection -->
+                    <div class="form-group">
+                        <label for="ocr-engine">Chọn OCR Engine</label>
+                        <select
+                            class="form-control"
+                            id="ocr-engine"
+                            name="ocr_engine"
+                        >
+                            <option value="paddle" selected>
+                                PaddleOCR (Khuyến nghị)
+                            </option>
+                            <option value="tesseract">Tesseract OCR</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            PaddleOCR thường cho kết quả tốt hơn với biển số xe
+                            Việt Nam
+                        </small>
+                    </div>
+
                     <!-- Preview Area -->
                     <div class="form-group">
                         <div id="image-preview" style="display: none">
@@ -88,6 +120,13 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
 
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search"></i> Nhận Diện
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-warning ml-2"
+                        onclick="stopAllProcessing()"
+                    >
+                        <i class="fas fa-stop"></i> Dừng Tất Cả
                     </button>
                 </form>
             </div>
@@ -203,6 +242,10 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         if (initialHistory && initialHistory.length) {
             updateHistory(initialHistory);
         }
+
+        // Variable to track ongoing requests
+        let currentRequest = null;
+
         // Handle file input change
         $("#image-upload").on("change", function () {
             const file = this.files[0];
@@ -223,22 +266,30 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         $("#upload-form").on("submit", function (e) {
             e.preventDefault();
 
+            // Abort any ongoing request
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+            }
+
             const formData = new FormData(this);
 
-            // Show loading state
+            // Show loading state with cancel button
             const submitBtn = $(this).find('button[type="submit"]');
             const originalText = submitBtn.html();
             submitBtn
-                .html('<i class="fas fa-spinner fa-spin"></i> Đang xử lý...')
-                .prop("disabled", true);
+                .html('<i class="fas fa-spinner fa-spin"></i> Đang xử lý... <button type="button" class="btn btn-sm btn-danger ml-2" onclick="cancelProcessing()">Hủy</button>')
+                .prop("disabled", false);
 
-            $.ajax({
+            currentRequest = $.ajax({
                 url: "/detect",
                 type: "POST",
                 data: formData,
                 processData: false,
                 contentType: false,
+                timeout: 30000, // 30 second timeout
                 success: function (response) {
+                    currentRequest = null;
                     if (response.success) {
                         displayResults(response);
                     } else {
@@ -248,20 +299,66 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                         );
                     }
                 },
-                error: function () {
-                    showError("Có lỗi xảy ra khi kết nối với máy chủ");
+                error: function (xhr, status, error) {
+                    currentRequest = null;
+                    if (status === 'abort') {
+                        showError("Đã hủy quá trình xử lý");
+                    } else if (status === 'timeout') {
+                        showError("Quá thời gian xử lý. Vui lòng thử lại.");
+                    } else {
+                        showError("Có lỗi xảy ra khi kết nối với máy chủ: " + error);
+                    }
                 },
                 complete: function () {
                     // Restore button state
                     submitBtn.html(originalText).prop("disabled", false);
+                    currentRequest = null;
                 },
             });
         });
+
+        // Global function to cancel processing
+        window.cancelProcessing = function() {
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+                showError("Đã dừng quá trình xử lý");
+            }
+        };
+
+        // Global function to stop all processing
+        window.stopAllProcessing = function() {
+            // Stop form upload request
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+            }
+
+            // Stop camera request
+            if (cameraRequest) {
+                cameraRequest.abort();
+                cameraRequest = null;
+            }
+
+            // Stop auto capture
+            if (autoInterval) {
+                clearInterval(autoInterval);
+                autoInterval = null;
+                document.getElementById('auto-capture').checked = false;
+            }
+
+            // Reset button states
+            const submitBtn = $("#upload-form").find('button[type="submit"]');
+            submitBtn.html('<i class="fas fa-search"></i> Nhận Diện').prop("disabled", false);
+
+            showError("Đã dừng tất cả các tiến trình xử lý");
+        };
     });
 
     // Camera controls
     let stream = null;
     let autoInterval = null;
+    let cameraRequest = null;
 
     async function startCamera() {
         try {
@@ -276,6 +373,12 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
     }
 
     function stopCamera() {
+        // Cancel any ongoing camera request
+        if (cameraRequest) {
+            cameraRequest.abort();
+            cameraRequest = null;
+        }
+
         if (stream) {
             stream.getTracks().forEach(t => t.stop());
             stream = null;
@@ -290,6 +393,11 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         const canvas = document.getElementById('camera-canvas');
         if (!video || !stream) return showError('Camera chưa được bật');
 
+        // Cancel previous camera request if exists
+        if (cameraRequest) {
+            cameraRequest.abort();
+        }
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         const ctx = canvas.getContext('2d');
@@ -298,14 +406,34 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         canvas.toBlob(async function (blob) {
             const fd = new FormData();
             fd.append('image', blob, 'capture.jpg');
+            // Thêm OCR engine từ form
+            const ocrEngine = document.getElementById('ocr-engine').value;
+            fd.append('ocr_engine', ocrEngine);
 
             try {
-                const res = await fetch('/detect', { method: 'POST', body: fd });
+                // Create AbortController for this request
+                const controller = new AbortController();
+                cameraRequest = controller;
+
+                const res = await fetch('/detect', {
+                    method: 'POST',
+                    body: fd,
+                    signal: controller.signal,
+                    timeout: 30000
+                });
+
                 const data = await res.json();
+                cameraRequest = null;
+
                 if (data.success) displayResults(data);
                 else showError(data.message || 'Nhận diện thất bại');
             } catch (err) {
-                showError('Lỗi kết nối: ' + err.message);
+                cameraRequest = null;
+                if (err.name === 'AbortError') {
+                    showError('Đã hủy quá trình nhận diện camera');
+                } else {
+                    showError('Lỗi kết nối: ' + err.message);
+                }
             }
         }, 'image/jpeg', 0.8);
     }
@@ -317,7 +445,7 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
     document.getElementById('auto-capture').addEventListener('change', function (e) {
         if (e.target.checked) {
             // every 3 seconds
-            autoInterval = setInterval(captureAndSend, 3000);
+            autoInterval = setInterval(captureAndSend, 2000);
         } else {
             if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
         }
