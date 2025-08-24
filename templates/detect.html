@@ -29,7 +29,7 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                             class="btn btn-success btn-sm"
                         >
                             <i class="fas fa-video"></i> Bắt đầu
-                        </button>
+                        <!-- </button> -->
                         <button
                             id="stop-camera"
                             class="btn btn-danger btn-sm"
@@ -448,7 +448,7 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
 
     function displayResults(response) {
         $("#detected-plate").attr("src", response.plate_image);
-        $("#detected-text").text(response.plate_text);
+        $("#detected-text").text(response.number_plate); 
         $("#confidence-score").text(
             Math.round(response.confidence * 100) + "%"
         );
