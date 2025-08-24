@@ -29,13 +29,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # cấu hình cho maikl
-app.config["MAIL_SERVER"] = "smtp.gmail.com"  
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = "0022410481@student.dthu.edu.vn"
-app.config["MAIL_PASSWORD"] = (
-    "xdfd xhtm tdxn ibne"  
-)
+app.config["MAIL_PASSWORD"] = "xdfd xhtm tdxn ibne"
 app.config["MAIL_DEFAULT_SENDER"] = "psymint002@gmail.com"
 
 mail = Mail(app)

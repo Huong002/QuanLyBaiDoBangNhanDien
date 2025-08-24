@@ -13,45 +13,72 @@ def check_np(number_plate):
         return 0
 
 
-# chèn bien so vao csdl
+
 def insert_np(number_plate):
-    count = Numberplate.query.filter_by(number_plate=number_plate).count()
-    province = get_province(number_plate)
-    if count % 2 == 0:
-        # Chẵn: cho vào bãi (status=1)
-        new_plate = Numberplate(
-            number_plate=number_plate,
-            status=1,
-            province=province,
-            date_in=datetime.utcnow(),
-        )
-        db.session.add(new_plate)
-        print("Xe vào bãi")
-        db.session.commit()
-        return "in"
-    else:
-        # Lẻ: cập nhật bản ghi mới nhất status=0, date_out=now
-        latest = (
-            Numberplate.query.filter_by(number_plate=number_plate)
-            .order_by(Numberplate.date_in.desc())
-            .first()
-        )
-        if latest:
-            latest.status = 0
-            latest.date_out = datetime.utcnow()
-            print("Xe ra bãi")
+    try:
+        # Lấy tất cả bản ghi của biển số này
+        plates = Numberplate.query.filter_by(number_plate=number_plate).all()
+
+        province = get_province(number_plate)
+
+        # Nếu có bản ghi, giữ bản ghi mới nhất và xóa các bản ghi khác
+        if plates:
+            latest = max(
+                plates, key=lambda x: x.date_in
+            )  # Lấy bản ghi có date_in mới nhất
+            # Xóa tất cả bản ghi trừ bản ghi mới nhất
+            for plate in plates:
+                if plate.id != latest.id:
+                    db.session.delete(plate)
             db.session.commit()
-            # Gửi email và trừ tiền nếu có user
-            user_email = None
-            if latest.user_id:
-                user = User.query.get(latest.user_id)
-                if user:
-                    user_email = user.email
-            if user_email:
-                send_fee_email(latest.id, 0, [user_email])
-            return "out"
-        else:
-            return False
+
+            # Cập nhật trạng thái dựa trên tình trạng hiện tại
+            if latest.status == 0:  # Xe đã ra bãi, giờ vào lại
+                latest.status = 1
+                latest.date_in = datetime.utcnow()
+                latest.date_out = None
+                latest.user_id = latest.user_id or (
+                    User.query.get(1).id if User.query.get(1) else None
+                )  # Kế thừa user_id
+                db.session.commit()
+                print("Xe vào bãi")
+                return "in"
+            elif latest.status == 1:  # Xe đang trong bãi, giờ ra
+                success = update_np(latest.id)
+                if success:
+                    print("Xe ra bãi")
+                    user_email = None
+                    if latest.user_id:
+                        user = User.query.get(latest.user_id)
+                        if user:
+                            user_email = user.email
+                    print(
+                        "tai khoan cua nguoi dung vua ra khoi bai goi la:", user_email
+                    )
+                    if user_email:
+                        send_fee_email(
+                            latest.id, 0, user_email
+                        )  # Truyền trực tiếp user_email
+                    return "out"
+        else:  # Nếu không có bản ghi nào, tạo mới
+            new_plate = Numberplate(
+                number_plate=number_plate,
+                status=1,
+                province=province,
+                date_in=datetime.utcnow(),
+                user_id=(
+                    User.query.get(1).id if User.query.get(1) else None
+                ),  # Gán user_id mặc định nếu có
+            )
+            db.session.add(new_plate)
+            db.session.commit()
+            print("Xe vào bãi (bản ghi mới)")
+            return "in"
+
+    except Exception as e:
+        print(f"Lỗi insert_np: {e}")
+        db.session.rollback()
+        return False
 
 
 # lấy tình thành
@@ -173,31 +200,33 @@ def is_vehicle_in_parking(number_plate):
 
 def send_fee_email(id, new_status, user_email):
     np = Numberplate.query.get(id)
-    if np and np.status == 1 and new_status == 0:
-        # Mỗi lượt ra bãi tính phí cố định 1.000đ
+    if np and new_status == 0:  # Chỉ kiểm tra new_status
         total_fee = 1000
         user = None
-        # Trừ tiền user nếu có user_id
         if np.user_id:
             user = User.query.get(np.user_id)
             if user:
                 user.balance = max(0, user.balance - total_fee)
                 db.session.commit()
 
-        # Gửi email thông báo (giả lập)
         try:
             from flask_mail import Message
-            from app import app
+            from app import app, mail  # Đảm bảo mail được import từ app
 
             with app.app_context():
                 msg = Message(
                     subject="Thông báo phí gửi xe",
-                    recipients=[user_email],
+                    recipients=[
+                        user_email
+                    ],  # Đảm bảo recipients là danh sách chứa chuỗi
                     body=f"Xe {np.number_plate} đã ra bãi. Phí: {total_fee:,}đ. Số dư còn lại: {user.balance if np.user_id and user else 'N/A'}đ.",
                 )
-                # mail.send(msg)  # Bỏ comment nếu đã cấu hình Flask-Mail
-                print(f"Đã gửi email tới {user_email}")
+                mail.send(msg)  # Gửi email
+                print(f"Đã gửi email tới {user_email} tại {datetime.utcnow()}")
         except Exception as e:
-            print(f"Lỗi gửi email: {e}")
+            print(f"Lỗi gửi email tại {datetime.utcnow()}: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
         return True
     return False
