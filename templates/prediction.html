@@ -1,0 +1,129 @@
+{% extends "layout.html" %} {% block title %}Dự Báo Số Xe Vào Bãi{% endblock %}
+{% block page_title %}Dự Báo Số Xe Vào Bãi{% endblock %} {% block main_content
+%}
+<form method="post" action="{{ url_for('predict') }}" id="predict-form">
+  <div class="row mb-3">
+  </div>
+    <div class="row mb-3">
+      <div class="col-md-12 d-flex justify-content-end">
+        <div class="form-group mb-0" style="min-width:220px;">
+          <label for="data_source" class="font-weight-bold mr-2">Nguồn dữ liệu</label>
+          <select class="form-control d-inline-block w-auto" id="data_source" name="data_source">
+            <option value="csv" {% if data_source == 'csv' %}selected{% endif %}>File CSV</option>
+            <option value="database" {% if data_source == 'database' %}selected{% endif %}>Cơ sở dữ liệu</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">
+            Biểu đồ dự báo lưu lượng xe vào bãi trong 1 tuần tới
+          </h5>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <canvas id="weekChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header bg-info text-white">
+          <h4 class="mb-0">Dự báo theo ngày</h4>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+              <label for="datetime" class="mb-1">Chọn ngày & giờ dự báo</label>
+              <div class="d-flex align-items-center">
+                <input
+                  type="datetime-local"
+                  class="form-control mr-2"
+                  id="datetime"
+                  name="datetime"
+                  value="{{ datetime_value }}"
+                  required
+                  style="max-width: 220px;"
+                />
+                <button type="submit" class="btn btn-primary start-end ml-auto" style="margin-left:auto;">Dự Báo</button>
+              </div>
+            </div>
+          {% if prediction is not none %}
+          <div class="alert alert-success mt-4">
+            <strong>Kết quả dự báo:</strong> Số xe dự kiến:
+            <span class="font-weight-bold">{{ prediction }}</span>
+          </div>
+          {% endif %}
+          {% if error %}
+          <div class="alert alert-danger mt-3">{{ error }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+<div class="row justify-content-center mt-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">
+          Biểu đồ dự báo lưu lượng xe vào bãi trong 1 tuần tới
+        </h5>
+      </div>
+      <div class="card-body">
+        <canvas id="weekChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block page_plugins %} {{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %} {% block page_scripts %} {{ super() }}
+<script>
+  const weekLabels = {{ week_labels|tojson|safe }};
+  const weekData = {{ week_predictions|tojson|safe }};
+  const weekChartCanvas = document.getElementById('weekChart');
+  if (weekChartCanvas) {
+    const ctx = weekChartCanvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: weekLabels,
+        datasets: [{
+          label: 'Dự báo số xe vào bãi',
+          data: weekData,
+          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: 'rgba(54, 162, 235, 1)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: true }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Ngày' } },
+          y: { title: { display: true, text: 'Số xe dự báo' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // Tự động submit form khi đổi nguồn dữ liệu
+    document.getElementById('data_source').addEventListener('change', function() {
+      // Reload trang với query param data_source mới
+      const val = this.value;
+      const url = new URL(window.location.href);
+      url.searchParams.set('data_source', val);
+      window.location.href = url.toString();
+    });
+</script>
+{% endblock %}

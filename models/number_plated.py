@@ -1,9 +1,5 @@
-
-
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-
-db = SQLAlchemy()
+from . import db
 
 class Numberplate(db.Model):
     __tablename__ = 'numberplate'
@@ -14,6 +10,6 @@ class Numberplate(db.Model):
     date_in = db.Column(db.DateTime, nullable=True, default=datetime.today)
     date_out = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=True, default=datetime.today)
-
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     def __repr__(self):
         return f'<Numberplate {self.number_plate}>'
