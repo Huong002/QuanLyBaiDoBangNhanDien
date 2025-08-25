@@ -1,0 +1,408 @@
+{% extends "layout.html" %} {% block title %}Cho Xe Ra Bãi - Quản Lý Bãi Đỗ Xe{%
+endblock %} {% block page_title %}Cho Xe Ra Bãi{% endblock %} {% block
+nav_checkout %}active{% endblock %} {% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
+<li class="breadcrumb-item active">Cho Xe Ra Bãi</li>
+{% endblock %} {% block main_content %}
+<div class="row">
+    <!-- Form cho xe ra -->
+    <div class="col-md-6">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Cho Xe Ra Khỏi Bãi</h3>
+            </div>
+            <div class="card-body">
+                <form id="checkout-form">
+                    <div class="form-group">
+                        <label for="plate-number">Biển Số Xe</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="plate-number"
+                            placeholder="Nhập biển số xe (VD: 30A-12345)"
+                            style="text-transform: uppercase"
+                            onkeypress="if(event.key==='Enter') searchVehicleInfo()"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <button
+                            type="button"
+                            class="btn btn-info btn-block"
+                            onclick="searchVehicleInfo()"
+                        >
+                            <i class="fas fa-search"></i> Tìm Kiếm Thông Tin Xe
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông tin xe -->
+    <div class="col-md-6">
+        <div
+            class="card card-info"
+            id="vehicle-info-card"
+            style="display: none"
+        >
+            <div class="card-header">
+                <h3 class="card-title">Thông Tin Xe</h3>
+            </div>
+            <div class="card-body" id="vehicle-info">
+                <!-- Thông tin sẽ được load bằng JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Xe đang trong bãi -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Xe Đang Trong Bãi</h3>
+                <div class="card-tools">
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        onclick="refreshVehicles()"
+                    >
+                        <i class="fas fa-sync-alt"></i> Làm Mới
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row" id="vehicles-grid">
+                    <!-- Vehicles sẽ được load bằng JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận -->
+<div class="modal fade" id="confirmCheckoutModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xác Nhận Cho Xe Ra</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="checkout-info">
+                    <!-- Thông tin xác nhận sẽ được load bằng JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-dismiss="modal"
+                >
+                    Hủy
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-warning"
+                    id="confirm-checkout-btn"
+                >
+                    <i class="fas fa-sign-out-alt"></i> Xác Nhận Cho Ra
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block additional_css %}
+<style>
+    .vehicle-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .vehicle-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .plate-number {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #007bff;
+    }
+    .duration-text {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %} {% block page_scripts %}
+<script>
+    let currentVehicleData = null;
+
+    function searchVehicleInfo() {
+        const plateNumber = document
+            .getElementById("plate-number")
+            .value.trim()
+            .toUpperCase();
+        if (!plateNumber) {
+            toastr.warning("Vui lòng nhập biển số xe", "Cảnh báo");
+            return;
+        }
+
+        // Show loading
+        const infoCard = document.getElementById("vehicle-info-card");
+        const infoDiv = document.getElementById("vehicle-info");
+        infoDiv.innerHTML =
+            '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Đang tìm kiếm...</div>';
+        infoCard.style.display = "block";
+
+        fetch(
+            `/api/search-vehicle?number_plate=${encodeURIComponent(
+                plateNumber
+            )}`
+        )
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    currentVehicleData = data.vehicle;
+                    displayVehicleInfo(data.vehicle);
+                } else {
+                    infoDiv.innerHTML = `
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${data.message}
+          </div>
+        `;
+                    currentVehicleData = null;
+                }
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+                infoDiv.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-times"></i>
+          Lỗi kết nối
+        </div>
+      `;
+                currentVehicleData = null;
+            });
+    }
+
+    function displayVehicleInfo(vehicle) {
+        const infoDiv = document.getElementById("vehicle-info");
+        infoDiv.innerHTML = `
+    <div class="row">
+      <div class="col-12">
+        <dl class="row">
+          <dt class="col-sm-4">Biển số:</dt>
+          <dd class="col-sm-8"><span class="plate-number">${
+              vehicle.number_plate
+          }</span></dd>
+          
+          <dt class="col-sm-4">Thời gian vào:</dt>
+          <dd class="col-sm-8">${vehicle.created_at}</dd>
+          
+          <dt class="col-sm-4">Thời gian đỗ:</dt>
+          <dd class="col-sm-8"><span class="duration-text">${
+              vehicle.duration
+          }</span></dd>
+          
+          <dt class="col-sm-4">Tỉnh/Thành:</dt>
+          <dd class="col-sm-8">${vehicle.province || "N/A"}</dd>
+          
+          <dt class="col-sm-4">Trạng thái:</dt>
+          <dd class="col-sm-8"><span class="badge badge-success">${
+              vehicle.status
+          }</span></dd>
+        </dl>
+        
+        <button class="btn btn-warning btn-block" onclick="showCheckoutConfirmation()">
+          <i class="fas fa-sign-out-alt"></i> Cho Xe Ra Khỏi Bãi
+        </button>
+      </div>
+    </div>
+  `;
+    }
+
+    function showCheckoutConfirmation() {
+        if (!currentVehicleData) {
+            toastr.error("Không có thông tin xe để xử lý", "Lỗi");
+            return;
+        }
+
+        const checkoutInfo = document.getElementById("checkout-info");
+        checkoutInfo.innerHTML = `
+    <div class="alert alert-info">
+      <h5><i class="fas fa-info-circle"></i> Thông tin xe sẽ ra bãi:</h5>
+      <ul class="mb-0">
+        <li><strong>Biển số:</strong> ${currentVehicleData.number_plate}</li>
+        <li><strong>Thời gian vào:</strong> ${currentVehicleData.created_at}</li>
+        <li><strong>Thời gian đỗ:</strong> ${currentVehicleData.duration}</li>
+        <li><strong>Phí dự kiến:</strong> <span class="text-danger">1,000 VNĐ</span></li>
+      </ul>
+    </div>
+    <p class="text-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Chú ý:</strong> Sau khi xác nhận, xe sẽ chính thức ra khỏi bãi và không thể hoàn tác.
+    </p>
+  `;
+
+        // Set up confirm button
+        document.getElementById("confirm-checkout-btn").onclick = function () {
+            performCheckout(currentVehicleData.number_plate);
+        };
+
+        $("#confirmCheckoutModal").modal("show");
+    }
+
+    function performCheckout(plateNumber) {
+        // Disable button
+        const confirmBtn = document.getElementById("confirm-checkout-btn");
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+        fetch("/api/checkout-vehicle", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                number_plate: plateNumber,
+            }),
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    $("#confirmCheckoutModal").modal("hide");
+                    toastr.success(data.message, "Thành công");
+
+                    // Show checkout details
+                    const checkoutDetails = `
+        <strong>Chi tiết:</strong><br>
+        • Thời gian ra: ${data.checkout_time}<br>
+        • Tổng thời gian đỗ: ${data.duration}
+      `;
+                    toastr.info(checkoutDetails, "Thông tin", {
+                        timeOut: 8000,
+                    });
+
+                    // Clear form and hide info
+                    document.getElementById("plate-number").value = "";
+                    document.getElementById("vehicle-info-card").style.display =
+                        "none";
+                    currentVehicleData = null;
+
+                    // Refresh vehicles grid
+                    refreshVehicles();
+                } else {
+                    toastr.error(data.message, "Lỗi");
+                }
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+                toastr.error("Lỗi kết nối", "Lỗi");
+            })
+            .finally(() => {
+                // Re-enable button
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML =
+                    '<i class="fas fa-sign-out-alt"></i> Xác Nhận Cho Ra';
+            });
+    }
+
+    function refreshVehicles() {
+        fetch("/api/vehicles-in-parking")
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    displayVehiclesGrid(data.vehicles);
+                } else {
+                    console.error("Error fetching vehicles:", data.message);
+                }
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+            });
+    }
+
+    function displayVehiclesGrid(vehicles) {
+        const grid = document.getElementById("vehicles-grid");
+
+        if (vehicles.length === 0) {
+            grid.innerHTML = `
+      <div class="col-12 text-center text-muted">
+        <i class="fas fa-car fa-3x mb-3"></i>
+        <p>Hiện tại không có xe nào trong bãi</p>
+      </div>
+    `;
+            return;
+        }
+
+        let html = "";
+        vehicles.forEach((vehicle) => {
+            html += `
+      <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card vehicle-card" onclick="selectVehicle('${vehicle.number_plate}')">
+          <div class="card-body">
+            <h5 class="card-title plate-number">${vehicle.number_plate}</h5>
+            <p class="card-text">
+              <small class="duration-text">
+                <i class="fas fa-clock"></i> Vào lúc: ${vehicle.created_at}
+              </small><br>
+              <small class="duration-text">
+                <i class="fas fa-hourglass-half"></i> Đã đỗ: ${vehicle.duration}
+              </small>
+            </p>
+            <button class="btn btn-warning btn-sm btn-block" onclick="event.stopPropagation(); quickCheckout('${vehicle.number_plate}')">
+              <i class="fas fa-sign-out-alt"></i> Cho Ra
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+        });
+
+        grid.innerHTML = html;
+    }
+
+    function selectVehicle(plateNumber) {
+        document.getElementById("plate-number").value = plateNumber;
+        searchVehicleInfo();
+    }
+
+    function quickCheckout(plateNumber) {
+        if (confirm(`Xác nhận cho xe ${plateNumber} ra khỏi bãi?`)) {
+            performCheckout(plateNumber);
+        }
+    }
+
+    function calculateDuration(dateInStr) {
+        const dateIn = new Date(dateInStr);
+        const now = new Date();
+        let diffMs = now - dateIn;
+
+        if (diffMs < 0) return "N/A";
+
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+            (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        let result = "";
+        if (days > 0) result += days + " ngày ";
+        if (hours > 0 || days > 0) result += hours + " giờ ";
+        result += minutes + " phút";
+
+        return result.trim();
+    }
+
+    $(document).ready(function () {
+        refreshVehicles();
+
+        // Auto refresh every 30 seconds
+        setInterval(refreshVehicles, 30000);
+    });
+</script>
+{% endblock %}

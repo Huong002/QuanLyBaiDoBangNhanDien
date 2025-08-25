@@ -128,6 +128,14 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                     >
                         <i class="fas fa-stop"></i> Dừng Tất Cả
                     </button>
+                    <button
+                        type="button"
+                        class="btn btn-info ml-2"
+                        onclick="manualCleanupTempImages()"
+                        title="Dọn dẹp ảnh tạm thời"
+                    >
+                        <i class="fas fa-broom"></i> Dọn Dẹp
+                    </button>
                 </form>
             </div>
             <!-- /.card-body -->
@@ -239,6 +247,27 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         // Variable to track ongoing requests
         let currentRequest = null;
 
+        // Cleanup temp images every 30 minutes
+        setInterval(function() {
+            $.ajax({
+                url: '/cleanup-temp-images',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        console.log('Temp cleanup:', response.message);
+                    }
+                },
+                error: function() {
+                    console.log('Temp cleanup failed');
+                }
+            });
+        }, 30 * 60 * 1000); // 30 minutes
+
+        // Cleanup when leaving page
+        window.addEventListener('beforeunload', function() {
+            cleanupTempImages();
+        });
+
         // Handle file input change
         $("#image-upload").on("change", function () {
             const file = this.files[0];
@@ -280,26 +309,40 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                 data: formData,
                 processData: false,
                 contentType: false,
-                timeout: 30000, // 30 second timeout
+                timeout: 60000, // 60 second timeout
                 success: function (response) {
+                    console.log("Response received:", response);
                     currentRequest = null;
-                    if (response.success) {
+                    if (response && response.success) {
                         displayResults(response);
+                        toastr.success("Nhận diện thành công!", "Thành công");
                     } else {
+                        console.log("Response indicates failure:", response);
                         showError(
-                            response.message ||
+                            (response && response.message) ||
                                 "Có lỗi xảy ra khi nhận diện biển số"
                         );
                     }
                 },
                 error: function (xhr, status, error) {
+                    console.log("AJAX Error:", {xhr: xhr, status: status, error: error});
+                    console.log("Response Text:", xhr.responseText);
                     currentRequest = null;
                     if (status === 'abort') {
                         showError("Đã hủy quá trình xử lý");
                     } else if (status === 'timeout') {
                         showError("Quá thời gian xử lý. Vui lòng thử lại.");
                     } else {
-                        showError("Có lỗi xảy ra khi kết nối với máy chủ: " + error);
+                        let errorMsg = "Có lỗi xảy ra khi kết nối với máy chủ: " + error;
+                        if (xhr.responseText) {
+                            try {
+                                const errorResponse = JSON.parse(xhr.responseText);
+                                errorMsg = errorResponse.message || errorMsg;
+                            } catch (e) {
+                                // Keep original error message
+                            }
+                        }
+                        showError(errorMsg);
                     }
                 },
                 complete: function () {
@@ -340,6 +383,9 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
                 document.getElementById('auto-capture').checked = false;
             }
 
+            // Reset trạng thái chờ xác nhận
+            waitingForConfirmation = false;
+
             // Reset button states
             const submitBtn = $("#upload-form").find('button[type="submit"]');
             submitBtn.html('<i class="fas fa-search"></i> Nhận Diện').prop("disabled", false);
@@ -352,6 +398,7 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
     let stream = null;
     let autoInterval = null;
     let cameraRequest = null;
+    let waitingForConfirmation = false; // Biến theo dõi trạng thái chờ xác nhận
 
     async function startCamera() {
         try {
@@ -372,6 +419,9 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
             cameraRequest = null;
         }
 
+        // Reset trạng thái chờ xác nhận
+        waitingForConfirmation = false;
+
         if (stream) {
             stream.getTracks().forEach(t => t.stop());
             stream = null;
@@ -379,9 +429,52 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
         document.getElementById('start-camera').disabled = false;
         document.getElementById('stop-camera').disabled = true;
         if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+        
+        // Cleanup temp images when stopping camera
+        cleanupTempImages();
     }
 
+    // Function to cleanup temp images
+    function cleanupTempImages() {
+        $.ajax({
+            url: '/cleanup-temp-images',
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    console.log('Manual cleanup:', response.message);
+                }
+            },
+            error: function() {
+                console.log('Manual cleanup failed');
+            }
+        });
+    }
+
+    // Manual cleanup with notification
+    window.manualCleanupTempImages = function() {
+        $.ajax({
+            url: '/cleanup-temp-images',
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    toastr.success(response.message, "Dọn dẹp thành công");
+                } else {
+                    toastr.error(response.message || "Có lỗi khi dọn dẹp", "Lỗi");
+                }
+            },
+            error: function() {
+                toastr.error("Không thể kết nối để dọn dẹp", "Lỗi");
+            }
+        });
+    };
+
     async function captureAndSend() {
+        // Kiểm tra nếu đang chờ xác nhận thì không capture nữa
+        if (waitingForConfirmation) {
+            console.log("Đang chờ xác nhận, bỏ qua capture");
+            return;
+        }
+
         const video = document.getElementById('camera-video');
         const canvas = document.getElementById('camera-canvas');
         if (!video || !stream) return showError('Camera chưa được bật');
@@ -402,31 +495,51 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
             // Thêm OCR engine từ form
             const ocrEngine = document.getElementById('ocr-engine').value;
             fd.append('ocr_engine', ocrEngine);
+            // Đánh dấu đây là request từ camera
+            fd.append('source', 'camera');
 
             try {
-                // Create AbortController for this request
-                const controller = new AbortController();
-                cameraRequest = controller;
-
-                const res = await fetch('/detect', {
-                    method: 'POST',
-                    body: fd,
-                    signal: controller.signal,
-                    timeout: 30000
+                cameraRequest = $.ajax({
+                    url: '/detect',
+                    type: 'POST',
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                    timeout: 60000,
+                    success: function(data) {
+                        if (data.success) {
+                            displayResults(data);
+                            
+                            // Nếu cần xác nhận thì dừng auto-capture
+                            if (data.needs_confirmation) {
+                                waitingForConfirmation = true;
+                                // Dừng auto-capture
+                                if (autoInterval) {
+                                    clearInterval(autoInterval);
+                                    autoInterval = null;
+                                    document.getElementById('auto-capture').checked = false;
+                                }
+                                toastr.info("Nhận diện thành công! Vui lòng xác nhận để lưu kết quả. Auto-capture đã dừng.", "Chờ xác nhận", {timeOut: 8000});
+                            } else {
+                                toastr.success("Nhận diện camera thành công!", "Thành công");
+                            }
+                        } else {
+                            showError(data.message || 'Nhận diện thất bại');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        if (status === 'abort' && xhr.readyState !== 4) {
+                            showError('Đã hủy quá trình nhận diện camera');
+                        } else if (status !== 'abort') {
+                            showError('Lỗi kết nối: ' + error);
+                        }
+                    },
+                    complete: function() {
+                        cameraRequest = null;
+                    }
                 });
-
-                const data = await res.json();
-                cameraRequest = null;
-
-                if (data.success) displayResults(data);
-                else showError(data.message || 'Nhận diện thất bại');
             } catch (err) {
-                cameraRequest = null;
-                if (err.name === 'AbortError') {
-                    showError('Đã hủy quá trình nhận diện camera');
-                } else {
-                    showError('Lỗi kết nối: ' + err.message);
-                }
+                showError('Lỗi kết nối: ' + err.message);
             }
         }, 'image/jpeg', 0.8);
     }
@@ -437,10 +550,21 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
     document.getElementById('capture-now').addEventListener('click', captureAndSend);
     document.getElementById('auto-capture').addEventListener('change', function (e) {
         if (e.target.checked) {
-            // every 3 seconds
+            // Kiểm tra nếu đang chờ xác nhận thì không cho bật auto-capture
+            if (waitingForConfirmation) {
+                e.target.checked = false;
+                toastr.warning("Vui lòng xác nhận hoặc bỏ qua kết quả hiện tại trước khi bật auto-capture", "Chờ xác nhận");
+                return;
+            }
+            // Reset trạng thái và bắt đầu auto-capture
+            waitingForConfirmation = false;
             autoInterval = setInterval(captureAndSend, 2000);
+            toastr.info("Auto-capture đã bật - sẽ tự động dừng khi có kết quả cần xác nhận", "Auto-capture", {timeOut: 3000});
         } else {
-            if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+            if (autoInterval) { 
+                clearInterval(autoInterval); 
+                autoInterval = null; 
+            }
         }
     });
 
@@ -451,17 +575,192 @@ Xe{% endblock %} {% block nav_detect %}active{% endblock %} {% block page_title
             Math.round(response.confidence * 100) + "%"
         );
 
-    $("#no-results").hide();
-    $("#detection-results").show();
+        $("#no-results").hide();
+        $("#detection-results").show();
+
+        // Cập nhật nút action dựa trên loại request
+        const actionButtons = $("#detection-results .text-center.mt-3");
+        
+        if (response.vehicle_in_parking && response.needs_exit_confirmation) {
+            // Xe đang trong bãi - hiển thị nút xác nhận ra bãi
+            actionButtons.html(`
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Xe đang trong bãi!</strong> Xác nhận cho xe ra bãi?
+                </div>
+                <button class="btn btn-danger" onclick="confirmExitParking('${response.number_plate}', '${response.plate_image}')">
+                    <i class="fas fa-sign-out-alt"></i> Xác Nhận Ra Bãi
+                </button>
+                <button class="btn btn-secondary" onclick="skipCameraResult()">
+                    <i class="fas fa-times"></i> Hủy
+                </button>
+            `);
+        } else if (response.needs_confirmation) {
+            // Camera request chưa được lưu (xe vào bãi)
+            actionButtons.html(`
+                <button class="btn btn-success" onclick="confirmCameraResult('${response.number_plate}', '${response.plate_image}')">
+                    <i class="fas fa-check"></i> Lưu Kết Quả
+                </button>
+                <button class="btn btn-secondary" onclick="skipCameraResult()">
+                    <i class="fas fa-times"></i> Bỏ Qua
+                </button>
+            `);
+        } else {
+            // Upload hoặc camera đã được lưu
+            actionButtons.html(`
+                <button class="btn btn-primary" onclick="saveResult()">
+                    <i class="fas fa-save"></i> Lưu Kết Quả
+                </button>
+                <button class="btn btn-secondary" onclick="resetForm()">
+                    <i class="fas fa-redo"></i> Nhận Diện Mới
+                </button>
+            `);
+        }
 
         // Add to history (if available)
-        if (response.history) {
-            updateHistory(response.history, response.confidence);
+        if (response.history && response.history.length > 0) {
+            updateHistory(response.history);
         }
+        
+        // Store current result for confirmation
+        window.currentResult = response;
     }
 
   function showError(message) {
     toastr.error(message, "Lỗi");
+  }
+
+  function skipCameraResult() {
+    // Reset trạng thái chờ xác nhận
+    waitingForConfirmation = false;
+    
+    // Reset form để có thể capture tiếp
+    resetForm();
+    
+    // Tự động bật lại auto-capture nếu camera đang hoạt động (với delay 1 giây)
+    if (stream && document.getElementById('camera-video').srcObject) {
+        setTimeout(() => {
+            document.getElementById('auto-capture').checked = true;
+            autoInterval = setInterval(captureAndSend, 2000);
+            toastr.success("Auto-capture đã tiếp tục hoạt động.", "Tiếp tục", {timeOut: 3000});
+        }, 1000);
+        toastr.info("Đã bỏ qua kết quả. Sẽ tiếp tục auto-capture sau 1 giây.", "Đã bỏ qua", {timeOut: 3000});
+    } else {
+        toastr.info("Đã bỏ qua kết quả. Vui lòng bật camera để sử dụng auto-capture.", "Đã bỏ qua", {timeOut: 3000});
+    }
+  }
+
+  function confirmCameraResult(numberPlate, plateImage) {
+    // Gửi request xác nhận lưu kết quả camera
+    $.ajax({
+        url: '/confirm-detection',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            number_plate: numberPlate,
+            temp_image_path: plateImage
+        }),
+        success: function(response) {
+            if (response.success) {
+                toastr.success(response.message, "Đã lưu!");
+                
+                // Reset trạng thái chờ xác nhận
+                waitingForConfirmation = false;
+                
+                // Cập nhật UI
+                if (response.history) {
+                    updateHistory(response.history);
+                }
+                
+                // Cập nhật nút action
+                const actionButtons = $("#detection-results .text-center.mt-3");
+                actionButtons.html(`
+                    <button class="btn btn-primary" onclick="saveResult()">
+                        <i class="fas fa-save"></i> Lưu Kết Quả
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetForm()">
+                        <i class="fas fa-redo"></i> Nhận Diện Mới
+                    </button>
+                `);
+                
+                // Cập nhật ảnh nếu có ảnh mới
+                if (response.final_image) {
+                    $("#detected-plate").attr("src", response.final_image);
+                }
+                
+                // Tự động bật lại auto-capture sau khi lưu thành công (nếu camera đang hoạt động)
+                if (stream && document.getElementById('camera-video').srcObject) {
+                    setTimeout(() => {
+                        document.getElementById('auto-capture').checked = true;
+                        autoInterval = setInterval(captureAndSend, 2000);
+                        toastr.success("Auto-capture đã tiếp tục hoạt động.", "Tiếp tục", {timeOut: 3000});
+                    }, 1000);
+                    toastr.success(response.message + " Sẽ tiếp tục auto-capture sau 1 giây.", "Đã lưu!");
+                } else {
+                    toastr.success(response.message, "Đã lưu!");
+                }
+                
+            } else {
+                showError(response.message || "Có lỗi khi lưu kết quả");
+            }
+        },
+        error: function(xhr, status, error) {
+            showError("Lỗi kết nối khi lưu: " + error);
+        }
+    });
+  }
+
+  function confirmExitParking(numberPlate, plateImage) {
+    // Gửi request xác nhận cho xe ra bãi
+    $.ajax({
+        url: '/detect',
+        type: 'POST',
+        data: {
+            'number_plate': numberPlate,
+            'confirmed': 'true',
+            'action': 'exit',
+            'source': 'camera'
+        },
+        success: function(response) {
+            if (response.success) {
+                toastr.success(response.status, "Thành công!");
+                
+                // Reset trạng thái chờ xác nhận
+                waitingForConfirmation = false;
+                
+                // Cập nhật UI
+                if (response.history) {
+                    updateHistory(response.history);
+                }
+                
+                // Cập nhật nút action
+                const actionButtons = $("#detection-results .text-center.mt-3");
+                actionButtons.html(`
+                    <button class="btn btn-primary" onclick="saveResult()">
+                        <i class="fas fa-save"></i> Hoàn Thành
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetForm()">
+                        <i class="fas fa-redo"></i> Nhận Diện Mới
+                    </button>
+                `);
+                
+                // Tự động bật lại auto-capture sau khi xử lý thành công (nếu camera đang hoạt động)
+                if (stream && document.getElementById('camera-video').srcObject) {
+                    setTimeout(() => {
+                        document.getElementById('auto-capture').checked = true;
+                        autoInterval = setInterval(captureAndSend, 2000);
+                        toastr.success("Auto-capture đã tiếp tục hoạt động.", "Tiếp tục", {timeOut: 3000});
+                    }, 1000);
+                }
+                
+            } else {
+                showError(response.message || "Có lỗi khi cho xe ra bãi");
+            }
+        },
+        error: function(xhr, status, error) {
+            showError("Lỗi kết nối khi cho xe ra bãi: " + error);
+        }
+    });
   }
 
   function saveResult() {

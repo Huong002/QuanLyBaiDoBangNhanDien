@@ -31,7 +31,7 @@ yolo_model = YOLO('runs/train3/weights/best.pt')
 
 def detect_plate_yolo(image_path, use_paddle_ocr=True):
     results = yolo_model(image_path)
-    print("YOLO results:", results)
+    # print("YOLO results:", results)
     boxes = results[0].boxes.xyxy.cpu().numpy() if hasattr(results[0].boxes, 'xyxy') else []
     print("Detected boxes:", boxes)
     if len(boxes) == 0:

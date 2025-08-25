@@ -365,7 +365,7 @@
                                 </a>
                                 <ul class="nav nav-treeview">
                                     <li class="nav-item">
-                                        <a href="{{ url_for('vehicles') }}" class="nav-link">
+                                        <a href="{{ url_for('vehicles') }}" class="nav-link {% block nav_vehicles %}{% endblock %}">
                                             <i
                                                 class="far fa-circle nav-icon"
                                             ></i>
@@ -373,7 +373,15 @@
                                         </a>
                                     </li>
                                     <li class="nav-item">
-                                        <a href="{{ url_for('history') }}" class="nav-link">
+                                        <a href="{{ url_for('checkout_page') }}" class="nav-link {% block nav_checkout %}{% endblock %}">
+                                            <i
+                                                class="fas fa-sign-out-alt nav-icon"
+                                            ></i>
+                                            <p>Cho Xe Ra Bãi</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ url_for('history') }}" class="nav-link {% block nav_history %}{% endblock %}">
                                             <i
                                                 class="far fa-circle nav-icon"
                                             ></i>

@@ -9,6 +9,7 @@ from database.detect_service import (
     get_province,
     check_np_status,
     check_np,
+    update_np,
 )
 from utils.image_processing import detect_plate_yolo
 from models.user import db, User
@@ -140,6 +141,50 @@ def test_insert():
             )
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
+
+@app.route("/checkout")
+def checkout_page():
+    """Trang cho xe ra bãi"""
+    return render_template("checkout.html")
+
+
+@app.route("/api/vehicles-in-parking")
+def api_vehicles_in_parking():
+    """API để lấy danh sách xe đang trong bãi"""
+    try:
+        vehicles_in_parking = (
+            Numberplate.query.filter_by(status=1)
+            .order_by(Numberplate.created_at.desc())
+            .all()
+        )
+        
+        vehicles_data = []
+        for vehicle in vehicles_in_parking:
+            # Tính thời gian đỗ xe
+            if vehicle.created_at:
+                duration = datetime.now() - vehicle.created_at
+                duration_str = f"{duration.days} ngày, {duration.seconds // 3600} giờ, {(duration.seconds % 3600) // 60} phút"
+            else:
+                duration_str = "Không xác định"
+                
+            vehicles_data.append({
+                "id": vehicle.id,
+                "number_plate": vehicle.number_plate,
+                "created_at": vehicle.created_at.strftime("%H:%M:%S %d/%m/%Y") if vehicle.created_at else "N/A",
+                "duration": duration_str,
+                "province": vehicle.province,
+                "status": "Trong bãi"
+            })
+        
+        return jsonify({
+            "success": True,
+            "vehicles": vehicles_data,
+            "count": len(vehicles_data)
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi: {str(e)}"}), 500
 
 
 @app.route("/vehicles")
@@ -286,9 +331,262 @@ def save_detection_settings():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route("/api/checkout-vehicle", methods=["POST"])
+def checkout_vehicle():
+    """API để cho xe ra khỏi bãi đậu xe"""
+    try:
+        data = request.get_json()
+        number_plate = data.get("number_plate")
+        
+        if not number_plate:
+            return jsonify({"success": False, "message": "Thiếu thông tin biển số"}), 400
+        
+        # Tìm xe trong bãi
+        vehicle = Numberplate.query.filter_by(
+            number_plate=number_plate, 
+            status=1
+        ).order_by(Numberplate.created_at.desc()).first()
+        
+        if not vehicle:
+            return jsonify({
+                "success": False, 
+                "message": f"Không tìm thấy xe {number_plate} trong bãi"
+            }), 404
+        
+        # Cập nhật trạng thái xe ra bãi
+        vehicle.status = 0
+        vehicle.date_out = datetime.now()
+        db.session.commit()
+        
+        # Tính thời gian đỗ xe
+        if vehicle.created_at:
+            duration = datetime.now() - vehicle.created_at
+            duration_str = f"{duration.days} ngày, {duration.seconds // 3600} giờ, {(duration.seconds % 3600) // 60} phút"
+        else:
+            duration_str = "Không xác định"
+        
+        # Gửi email thông báo phí (nếu có user)
+        user_email = None
+        if vehicle.user_id:
+            user = User.query.get(vehicle.user_id)
+            if user:
+                user_email = user.email
+                # Gửi email thông báo phí
+                from database.detect_service import send_fee_email
+                send_fee_email(vehicle.id, 0, user_email)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Xe {number_plate} đã ra khỏi bãi thành công",
+            "duration": duration_str,
+            "checkout_time": vehicle.date_out.strftime("%H:%M:%S %d/%m/%Y")
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Lỗi xử lý: {str(e)}"}), 500
+
+
+@app.route("/api/search-vehicle", methods=["GET"])
+def search_vehicle():
+    """API để tìm kiếm thông tin xe trong bãi"""
+    try:
+        number_plate = request.args.get("number_plate")
+        
+        if not number_plate:
+            return jsonify({"success": False, "message": "Thiếu thông tin biển số"}), 400
+        
+        # Tìm xe trong bãi
+        vehicle = Numberplate.query.filter_by(
+            number_plate=number_plate, 
+            status=1
+        ).order_by(Numberplate.created_at.desc()).first()
+        
+        if not vehicle:
+            return jsonify({
+                "success": False, 
+                "message": f"Không tìm thấy xe {number_plate} trong bãi"
+            })
+        
+        # Tính thời gian đỗ xe
+        if vehicle.created_at:
+            duration = datetime.now() - vehicle.created_at
+            duration_str = f"{duration.days} ngày, {duration.seconds // 3600} giờ, {(duration.seconds % 3600) // 60} phút"
+        else:
+            duration_str = "Không xác định"
+        
+        return jsonify({
+            "success": True,
+            "vehicle": {
+                "id": vehicle.id,
+                "number_plate": vehicle.number_plate,
+                "created_at": vehicle.created_at.strftime("%H:%M:%S %d/%m/%Y") if vehicle.created_at else "N/A",
+                "duration": duration_str,
+                "province": vehicle.province,
+                "status": "Trong bãi"
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi tìm kiếm: {str(e)}"}), 500
+
+
+@app.route("/cleanup-temp-images", methods=["POST"])
+def cleanup_temp_images():
+    """API để dọn dẹp ảnh tạm thời cũ"""
+    try:
+        import glob
+        from datetime import datetime, timedelta
+        
+        temp_dir = os.path.join("static", "images")
+        if not os.path.exists(temp_dir):
+            return jsonify({"success": True, "message": "Thư mục temp không tồn tại"})
+        
+        # Xóa file temp cũ hơn 1 giờ
+        cutoff_time = time.time() - 3600  # 1 hour ago
+        deleted_count = 0
+        
+        for file_path in glob.glob(os.path.join(temp_dir, "temp_plate_*.jpg")):
+            if os.path.getctime(file_path) < cutoff_time:
+                try:
+                    os.remove(file_path)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Đã xóa {deleted_count} ảnh tạm thời cũ"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi dọn dẹp: {str(e)}"}), 500
+
+
+@app.route("/confirm-detection", methods=["POST"])
+def confirm_detection():
+    """API endpoint để xác nhận lưu kết quả nhận diện từ camera"""
+    try:
+        data = request.get_json()
+        number_plate = data.get("number_plate")
+        temp_image_path = data.get("temp_image_path")
+        
+        if not number_plate:
+            return jsonify({"success": False, "message": "Thiếu thông tin biển số"}), 400
+        
+        # Lưu vào database
+        result = insert_np(number_plate)
+        if result == "in":
+            status = "Xe vào bãi đỗ"
+        elif result == "out":
+            status = "Xe ra khỏi bãi"
+        else:
+            status = "Không xác định trạng thái"
+        
+        # Di chuyển ảnh từ temp sang permanent nếu có
+        final_image_url = None
+        if temp_image_path:
+            try:
+                import shutil
+                # Tạo tên file mới cho ảnh vĩnh viễn
+                import uuid
+                save_name = f"plate_{uuid.uuid4().hex}.jpg"
+                final_path = os.path.join("static", "image", save_name)
+                
+                # Di chuyển từ temp sang permanent
+                temp_full_path = os.path.join("static", temp_image_path.replace("/static/", ""))
+                if os.path.exists(temp_full_path):
+                    shutil.move(temp_full_path, final_path)
+                    final_image_url = url_for("static", filename=f"image/{save_name}")
+            except Exception as e:
+                print(f"Error moving temp image: {e}")
+        
+        # Lấy lịch sử mới nhất
+        recent_history = (
+            Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
+        )
+        history_data = [
+            {
+                "id": record.id,
+                "plate_text": record.number_plate,
+                "created_at": (
+                    record.created_at.strftime("%H:%M:%S %d/%m/%Y")
+                    if record.created_at
+                    else None
+                ),
+                "status": record.status,
+            }
+            for record in recent_history
+        ]
+        
+        return jsonify({
+            "success": True,
+            "message": f"Đã lưu biển số {number_plate}",
+            "status": status,
+            "final_image": final_image_url,
+            "history": history_data
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi xác nhận: {str(e)}"}), 500
+
+
 @app.route("/detect", methods=["POST"])
 def detect_plate():
     """API endpoint để nhận diện biển số"""
+    
+    # Kiểm tra xem có phải request xác nhận ra bãi không (chỉ có biển số, không có ảnh)
+    direct_plate = request.form.get("number_plate")
+    if direct_plate and request.form.get("action") == "exit":
+        # Xử lý trường hợp xác nhận ra bãi trực tiếp
+        try:
+            vehicle_status = check_np_status(direct_plate)
+            if vehicle_status and vehicle_status[2] == 1:  # Xe đang trong bãi
+                result = update_np(vehicle_status[0])
+                if result:
+                    # Lấy lịch sử mới nhất
+                    recent_history = (
+                        Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
+                    )
+                    history_data = [
+                        {
+                            "id": record.id,
+                            "plate_text": record.number_plate,
+                            "created_at": (
+                                record.created_at.strftime("%H:%M:%S %d/%m/%Y")
+                                if record.created_at
+                                else None
+                            ),
+                            "status": record.status,
+                        }
+                        for record in recent_history
+                    ]
+                    
+                    return jsonify({
+                        "success": True,
+                        "number_plate": direct_plate,
+                        "status": "Xe ra khỏi bãi thành công",
+                        "message": "Xe đã được cho ra bãi",
+                        "history": history_data,
+                        "vehicle_in_parking": False,
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "message": "Lỗi khi cho xe ra bãi"
+                    }), 500
+            else:
+                return jsonify({
+                    "success": False,
+                    "message": "Xe không có trong bãi hoặc đã ra bãi"
+                }), 400
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": f"Lỗi xử lý ra bãi: {str(e)}"
+            }), 500
+    
+    # Logic cũ cho trường hợp có ảnh
     if "image" not in request.files:
         return jsonify({"success": False, "message": "Không có ảnh được tải lên"}), 400
 
@@ -314,44 +612,93 @@ def detect_plate():
             image_path, use_paddle_ocr=use_paddle_ocr
         )
 
-        # Nhận diện biển số bằng YOLO và OCR
-        number_plate, plate_crop = detect_plate_yolo(image_path)
+        # Cleanup temporary file
+        try:
+            os.unlink(image_path)
+        except:
+            pass
 
         if number_plate:
             province = get_province(number_plate)
-            result = insert_np(number_plate)
-            if result == "in":
-                status = "Xe vào bãi đỗ"
-            elif result == "out":
-                status = "Xe ra khỏi bãi"
+            
+            # Kiểm tra xem có phải request từ camera không
+            is_camera_request = request.form.get("source") == "camera"
+            
+            # Kiểm tra trạng thái xe trong database
+            vehicle_status = check_np_status(number_plate)
+            
+            # Nếu xe đang trong bãi (status=1), hiển thị thông báo xác nhận ra bãi
+            if vehicle_status and vehicle_status[2] == 1:  # status == 1 có nghĩa là xe đang trong bãi
+                needs_exit_confirmation = True
+                status = "Xe đang trong bãi - Xác nhận cho ra?"
+                should_save_to_db = request.form.get("confirmed") == "true" and request.form.get("action") == "exit"
             else:
-                status = "Không xác định trạng thái"
+                needs_exit_confirmation = False
+                # Logic cũ cho xe vào bãi
+                should_save_to_db = not is_camera_request or request.form.get("confirmed") == "true"
+                
+            if should_save_to_db:
+                if needs_exit_confirmation or (vehicle_status and vehicle_status[2] == 1):
+                    # Cho xe ra bãi
+                    result = update_np(vehicle_status[0])  # vehicle_status[0] là plate_id
+                    if result:
+                        status = "Xe ra khỏi bãi thành công"
+                    else:
+                        status = "Lỗi khi cho xe ra bãi"
+                else:
+                    # Logic cũ cho xe vào bãi
+                    result = insert_np(number_plate)
+                    if result == "in":
+                        status = "Xe vào bãi đỗ"
+                    elif result == "out":
+                        status = "Xe ra khỏi bãi"
+                    else:
+                        status = "Không xác định trạng thái"
+            elif needs_exit_confirmation:
+                status = "Xe đang trong bãi - Xác nhận cho ra?"
+            else:
+                status = "Chờ xác nhận"
 
-            # Lưu ảnh crop biển số vào static để trả về giao diện
+            # Lưu ảnh crop biển số - với prefix khác nhau cho camera và upload
             plate_image_url = None
             if plate_crop:
-                save_name = f"plate_{uuid.uuid4().hex}.jpg"
-                save_path = os.path.join("static", "image", save_name)
+                if is_camera_request and not should_save_to_db:
+                    # Lưu ảnh tạm thời cho camera preview
+                    save_name = f"temp_plate_{uuid.uuid4().hex}.jpg"
+                    save_path = os.path.join("static", "images", save_name)
+                else:
+                    # Lưu ảnh vĩnh viễn cho upload hoặc camera đã xác nhận
+                    save_name = f"plate_{uuid.uuid4().hex}.jpg"
+                    save_path = os.path.join("static", "image", save_name)
+                
+                # Tạo thư mục nếu chưa có
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 plate_crop.save(save_path)
-                plate_image_url = url_for("static", filename=f"image/{save_name}")
+                
+                if is_camera_request and not should_save_to_db:
+                    plate_image_url = url_for("static", filename=f"images/{save_name}")
+                else:
+                    plate_image_url = url_for("static", filename=f"image/{save_name}")
 
-            # Lấy lịch sử mới nhất
-            recent_history = (
-                Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
-            )
-            history_data = [
-                {
-                    "id": record.id,
-                    "plate_text": record.number_plate,
-                    "created_at": (
-                        record.created_at.strftime("%H:%M:%S %d/%m/%Y")
-                        if record.created_at
-                        else None
-                    ),
-                    "status": record.status,
-                }
-                for record in recent_history
-            ]
+            # Lấy lịch sử mới nhất chỉ khi đã lưu vào database
+            history_data = []
+            if should_save_to_db:
+                recent_history = (
+                    Numberplate.query.order_by(Numberplate.created_at.desc()).limit(5).all()
+                )
+                history_data = [
+                    {
+                        "id": record.id,
+                        "plate_text": record.number_plate,
+                        "created_at": (
+                            record.created_at.strftime("%H:%M:%S %d/%m/%Y")
+                            if record.created_at
+                            else None
+                        ),
+                        "status": record.status,
+                    }
+                    for record in recent_history
+                ]
 
             return jsonify(
                 {
@@ -363,6 +710,10 @@ def detect_plate():
                     "confidence": 0.85,
                     "message": "Nhận diện thành công",
                     "history": history_data,
+                    "is_camera": is_camera_request,
+                    "needs_confirmation": is_camera_request and not should_save_to_db,
+                    "needs_exit_confirmation": needs_exit_confirmation if 'needs_exit_confirmation' in locals() else False,
+                    "vehicle_in_parking": vehicle_status[2] == 1 if vehicle_status else False,
                 }
             )
         else:
@@ -375,9 +726,23 @@ def detect_plate():
 
     except Exception as e:
         import traceback
-
+        
+        # Log chi tiết lỗi
+        print(f"Error in detect_plate: {str(e)}")
         traceback.print_exc()
-        return jsonify({"success": False, "message": f"Lỗi xử lý: {str(e)}"}), 500
+        
+        # Cleanup temporary file if exists
+        try:
+            if 'image_path' in locals():
+                os.unlink(image_path)
+        except:
+            pass
+            
+        return jsonify({
+            "success": False, 
+            "message": f"Lỗi xử lý: {str(e)}",
+            "error_type": type(e).__name__
+        }), 500
     finally:
         # Xóa file tạm
         try:
@@ -458,4 +823,23 @@ if __name__ == "__main__":
         db.create_all()
         print("Database tables created/verified!")
         print("App running in test mode (no YOLO)")
+        
+        # Dọn dẹp ảnh temp cũ khi khởi động
+        try:
+            import glob
+            temp_dir = os.path.join("static", "images")
+            if os.path.exists(temp_dir):
+                cutoff_time = time.time() - 3600  # 1 hour ago
+                deleted_count = 0
+                for file_path in glob.glob(os.path.join(temp_dir, "temp_plate_*.jpg")):
+                    if os.path.getctime(file_path) < cutoff_time:
+                        try:
+                            os.remove(file_path)
+                            deleted_count += 1
+                        except:
+                            pass
+                print(f"Cleaned up {deleted_count} old temp images")
+        except:
+            pass
+            
     app.run(debug=True, port=5001)
