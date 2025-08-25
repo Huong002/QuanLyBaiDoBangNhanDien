@@ -15,48 +15,55 @@ def check_np(number_plate):
 
 def insert_np(number_plate):
     try:
-        # Lấy tất cả bản ghi của biển số này
         plates = Numberplate.query.filter_by(number_plate=number_plate).all()
 
         province = get_province(number_plate)
 
-        # Nếu có bản ghi, giữ bản ghi mới nhất và xóa các bản ghi khác
         if plates:
             latest = max(
                 plates, key=lambda x: x.date_in
-            )  # Lấy bản ghi có date_in mới nhất
-            # Xóa tất cả bản ghi trừ bản ghi mới nhất
+            )  
             for plate in plates:
                 if plate.id != latest.id:
                     db.session.delete(plate)
             db.session.commit()
 
-            # Cập nhật trạng thái dựa trên tình trạng hiện tại
-            if latest.status == 0:  # Xe đã ra bãi, giờ vào lại
+            if latest.status == 0:  
                 latest.status = 1
                 latest.date_in = datetime.utcnow()
                 latest.date_out = None
+                latest.user_id = latest.user_id or (
+                    User.query.get(1).id if User.query.get(1) else None
+                )
                 db.session.commit()
                 print("Xe vào bãi")
                 return "in"
-            elif latest.status == 1:  # Xe đang trong bãi, giờ ra
+            elif latest.status == 1:
+                print(
+                    f"[DEBUG] insert_np: Gọi update_np cho plate_id={latest.id}, number_plate={latest.number_plate}, user_id={latest.user_id}"
+                )
                 success = update_np(latest.id)
                 if success:
-                    print("Xe ra bãi")
+                    print("[DEBUG] insert_np: Xe ra bãi, update_np thành công")
                     user_email = None
                     if latest.user_id:
                         user = User.query.get(latest.user_id)
                         if user:
                             user_email = user.email
+                            print(
+                                f"[DEBUG] insert_np: User balance sau update_np: {user.balance}"
+                            )
                     print(
                         "tai khoan cua nguoi dung vua ra khoi bai goi la:", user_email
                     )
                     if user_email:
-                        send_fee_email(
-                            latest.id, 0, user_email
-                        )  # Truyền trực tiếp user_email
+                        send_fee_email(latest.id, 0, user_email)
                     return "out"
-        else:  # Nếu không có bản ghi nào, tạo mới
+                else:
+                    print(
+                        f"[DEBUG] insert_np: Gọi update_np thất bại cho plate_id={latest.id}"
+                    )
+        else:
             new_plate = Numberplate(
                 number_plate=number_plate,
                 status=1,
@@ -184,12 +191,25 @@ def check_np_status(number_plate):
 # cap nhap
 def update_np(plate_id):
     try:
+        print(f"[DEBUG] update_np: Bắt đầu với plate_id={plate_id}")
         plate = Numberplate.query.get(plate_id)
         if plate:
+            print(
+                f"[DEBUG] update_np: Trước cập nhật: status={plate.status}, date_out={plate.date_out}, user_id={plate.user_id}"
+            )
             plate.status = 0
             plate.date_out = datetime.utcnow()
             db.session.commit()
+            print(
+                f"[DEBUG] update_np: Đã commit thành công cho plate_id={plate_id}, status={plate.status}, date_out={plate.date_out}, user_id={plate.user_id}"
+            )
+            # Nếu có user, in thêm balance
+            if plate.user_id:
+                user = User.query.get(plate.user_id)
+                if user:
+                    print(f"[DEBUG] update_np: User balance sau commit: {user.balance}")
             return True
+        print(f"[DEBUG] update_np: Không tìm thấy plate với id={plate_id}")
         return False
     except Exception as e:
         print(f"Lỗi update_np: {e}")
