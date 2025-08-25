@@ -215,21 +215,22 @@ def history():
 
 @app.route("/reports")
 def reports():
-    """Trang báo cáo"""
+    """Trang báo cáo động"""
     try:
-        # Thống kê cơ bản cho báo cáo
+        from datetime import timedelta
+        from sqlalchemy import func, extract
+        
         today = datetime.now().date()
-
-        # Báo cáo ngày
+        
+        # Báo cáo ngày - Xe vào hôm nay
         daily_in = Numberplate.query.filter(
             db.func.date(Numberplate.created_at) == today
         ).count()
 
         # Báo cáo tuần (7 ngày gần đây)
-        from datetime import timedelta
-
-        week_ago = today - timedelta(days=7)
+        week_ago = today - timedelta(days=6)  # 7 ngày gần đây
         weekly_data = []
+        total_week = 0
 
         for i in range(7):
             day = week_ago + timedelta(days=i)
@@ -237,11 +238,100 @@ def reports():
                 db.func.date(Numberplate.created_at) == day
             ).count()
             weekly_data.append({"date": day.strftime("%d/%m"), "count": count})
+            total_week += count
+
+        # Tính toán thống kê tổng quan
+        avg_daily = round(total_week / 7) if total_week > 0 else 0
+        peak_day = max([day['count'] for day in weekly_data]) if weekly_data else 0
+
+        # Top xe ra vào nhiều nhất (trong 30 ngày)
+        month_ago = today - timedelta(days=30)
+        top_vehicles_query = db.session.query(
+            Numberplate.number_plate,
+            func.count(Numberplate.id).label('visit_count'),
+            func.max(Numberplate.created_at).label('last_visit')
+        ).filter(
+            Numberplate.created_at >= month_ago
+        ).group_by(
+            Numberplate.number_plate
+        ).order_by(
+            func.count(Numberplate.id).desc()
+        ).limit(5).all()
+
+        # Xử lý dữ liệu top vehicles với thông tin ngày
+        top_vehicles = []
+        for vehicle in top_vehicles_query:
+            days_ago = (today - vehicle.last_visit.date()).days
+            if days_ago == 0:
+                last_visit_text = "Hôm nay"
+            elif days_ago == 1:
+                last_visit_text = "Hôm qua"
+            else:
+                last_visit_text = f"{days_ago} ngày trước"
+            
+            top_vehicles.append({
+                'number_plate': vehicle.number_plate,
+                'visit_count': vehicle.visit_count,
+                'last_visit_text': last_visit_text
+            })
+
+        # Phân tích theo khung giờ
+        hourly_stats = {
+            'morning': 0,    # 6-12h
+            'afternoon': 0,  # 12-18h
+            'evening': 0,    # 18-24h
+            'night': 0       # 0-6h
+        }
+        
+        # Lấy dữ liệu tuần này để phân tích giờ
+        week_start = today - timedelta(days=6)
+        hourly_records = Numberplate.query.filter(
+            Numberplate.created_at >= week_start
+        ).all()
+
+        total_hourly = len(hourly_records)
+        if total_hourly > 0:
+            for record in hourly_records:
+                hour = record.created_at.hour
+                if 6 <= hour < 12:
+                    hourly_stats['morning'] += 1
+                elif 12 <= hour < 18:
+                    hourly_stats['afternoon'] += 1
+                elif 18 <= hour < 24:
+                    hourly_stats['evening'] += 1
+                else:  # 0-6h
+                    hourly_stats['night'] += 1
+
+        # Tính phần trăm
+        hourly_percentages = {}
+        for period, count in hourly_stats.items():
+            hourly_percentages[period] = round((count / total_hourly) * 100) if total_hourly > 0 else 0
+
+        # Dữ liệu cho biểu đồ phân bố giờ
+        hourly_chart_data = [
+            hourly_percentages['morning'],
+            hourly_percentages['afternoon'], 
+            hourly_percentages['evening'],
+            hourly_percentages['night']
+        ]
+
+        # Tổng số xe trong bãi hiện tại
+        current_in_parking = Numberplate.query.filter(Numberplate.status == 1).count()
 
         return render_template(
-            "reports.html", daily_in=daily_in, weekly_data=weekly_data
+            "reports.html", 
+            daily_in=daily_in, 
+            weekly_data=weekly_data,
+            total_week=total_week,
+            avg_daily=avg_daily,
+            peak_day=peak_day,
+            top_vehicles=top_vehicles,
+            hourly_percentages=hourly_percentages,
+            hourly_chart_data=hourly_chart_data,
+            current_in_parking=current_in_parking
         )
     except Exception as e:
+        print(f"Lỗi báo cáo: {e}")
         return f"Lỗi: {e}", 500
 
 

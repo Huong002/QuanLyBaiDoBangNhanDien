@@ -3,7 +3,8 @@ endblock %} {% block page_title %}Báo Cáo Thống Kê{% endblock %} {% block
 breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Trang Chủ</a></li>
 <li class="breadcrumb-item active">Báo Cáo</li>
-{% endblock %} {% block main_content %}
+{% endblock %} {% block nav_reports %}active{% endblock %} {% block main_content
+%}
 <!-- Summary Stats -->
 <div class="row">
     <div class="col-lg-3 col-6">
@@ -18,13 +19,20 @@ breadcrumb %}
         </div>
     </div>
     <div class="col-lg-3 col-6">
+        <div class="small-box bg-primary">
+            <div class="inner">
+                <h3>{{ current_in_parking }}</h3>
+                <p>Xe Hiện Trong Bãi</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-car"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
             <div class="inner">
-                <h3 id="weekly-total">
-                    {% set weekly_total = 0 %} {% for day in weekly_data %} {%
-                    set weekly_total = weekly_total + day.count %} {% endfor %}
-                    {{ weekly_total }}
-                </h3>
+                <h3>{{ total_week }}</h3>
                 <p>Xe Vào Tuần Này</p>
             </div>
             <div class="icon">
@@ -35,7 +43,7 @@ breadcrumb %}
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
-                <h3 id="avg-daily">{{ (weekly_total / 7)|round|int }}</h3>
+                <h3>{{ avg_daily }}</h3>
                 <p>Trung Bình/Ngày</p>
             </div>
             <div class="icon">
@@ -46,12 +54,8 @@ breadcrumb %}
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
             <div class="inner">
-                <h3 id="peak-day">
-                    {% set max_count = 0 %} {% for day in weekly_data %} {% if
-                    day.count > max_count %} {% set max_count = day.count %} {%
-                    endif %} {% endfor %} {{ max_count }}
-                </h3>
-                <p>Cao Điểm</p>
+                <h3>{{ peak_day }}</h3>
+                <p>Cao Điểm Tuần</p>
             </div>
             <div class="icon">
                 <i class="fas fa-arrow-up"></i>
@@ -123,33 +127,23 @@ breadcrumb %}
                         </tr>
                     </thead>
                     <tbody>
+                        {% if top_vehicles %} {% for vehicle in top_vehicles %}
                         <tr>
                             <td>
                                 <span class="badge badge-primary"
-                                    >30A-12345</span
+                                    >{{ vehicle.number_plate }}</span
                                 >
                             </td>
-                            <td>15</td>
-                            <td>Hôm nay</td>
+                            <td>{{ vehicle.visit_count }}</td>
+                            <td>{{ vehicle.last_visit_text }}</td>
                         </tr>
+                        {% endfor %} {% else %}
                         <tr>
-                            <td>
-                                <span class="badge badge-primary"
-                                    >29B-67890</span
-                                >
+                            <td colspan="3" class="text-center text-muted">
+                                Không có dữ liệu trong 30 ngày qua
                             </td>
-                            <td>12</td>
-                            <td>Hôm qua</td>
                         </tr>
-                        <tr>
-                            <td>
-                                <span class="badge badge-primary"
-                                    >51F-11111</span
-                                >
-                            </td>
-                            <td>8</td>
-                            <td>2 ngày trước</td>
-                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -168,41 +162,49 @@ breadcrumb %}
             <div class="card-body">
                 <div class="progress-group">
                     Sáng (6h-12h)
-                    <span class="float-right"><b>45%</b></span>
+                    <span class="float-right"
+                        ><b>{{ hourly_percentages.morning }}%</b></span
+                    >
                     <div class="progress progress-sm">
                         <div
                             class="progress-bar bg-primary"
-                            style="width: 45%"
+                            style="width: {{ hourly_percentages.morning }}%"
                         ></div>
                     </div>
                 </div>
                 <div class="progress-group">
                     Chiều (12h-18h)
-                    <span class="float-right"><b>35%</b></span>
+                    <span class="float-right"
+                        ><b>{{ hourly_percentages.afternoon }}%</b></span
+                    >
                     <div class="progress progress-sm">
                         <div
                             class="progress-bar bg-success"
-                            style="width: 35%"
+                            style="width: {{ hourly_percentages.afternoon }}%"
                         ></div>
                     </div>
                 </div>
                 <div class="progress-group">
                     Tối (18h-24h)
-                    <span class="float-right"><b>20%</b></span>
+                    <span class="float-right"
+                        ><b>{{ hourly_percentages.evening }}%</b></span
+                    >
                     <div class="progress progress-sm">
                         <div
                             class="progress-bar bg-warning"
-                            style="width: 20%"
+                            style="width: {{ hourly_percentages.evening }}%"
                         ></div>
                     </div>
                 </div>
                 <div class="progress-group">
                     Đêm (0h-6h)
-                    <span class="float-right"><b>5%</b></span>
+                    <span class="float-right"
+                        ><b>{{ hourly_percentages.night }}%</b></span
+                    >
                     <div class="progress progress-sm">
                         <div
                             class="progress-bar bg-danger"
-                            style="width: 5%"
+                            style="width: {{ hourly_percentages.night }}%"
                         ></div>
                     </div>
                 </div>
@@ -306,9 +308,9 @@ breadcrumb %}
       const hourlyChart = new Chart(hourlyCtx, {
         type: 'doughnut',
         data: {
-          labels: ['Sáng', 'Chiều', 'Tối', 'Đêm'],
+          labels: ['Sáng (6h-12h)', 'Chiều (12h-18h)', 'Tối (18h-24h)', 'Đêm (0h-6h)'],
           datasets: [{
-            data: [45, 35, 20, 5],
+            data: {{ hourly_chart_data|safe }},
             backgroundColor: [
               'rgba(54, 162, 235, 0.8)',
               'rgba(75, 192, 192, 0.8)',
