@@ -32,9 +32,9 @@ def insert_np(number_plate):
                 latest.status = 1
                 latest.date_in = datetime.utcnow()
                 latest.date_out = None
-                latest.user_id = latest.user_id or (
-                    User.query.get(1).id if User.query.get(1) else None
-                )
+                # latest.user_id = latest.user_id or (
+                #     User.query.get(1).id if User.query.get(1) else None
+                # )
                 db.session.commit()
                 print("Xe vào bãi")
                 return "in"
