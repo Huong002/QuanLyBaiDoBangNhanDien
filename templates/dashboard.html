@@ -5,323 +5,207 @@ endblock %} {% block nav_dashboard %}active{% endblock %} {% block page_title
 <li class="breadcrumb-item active">Dashboard</li>
 {% endblock %} {% block main_content %}
 <!-- Small boxes (Stat box) -->
-<div class="row">
-    <div class="col-lg-3 col-6">
-        <!-- small box -->
-        <div class="small-box bg-info">
-            <div class="inner">
-                <h3 id="total-cars">{{ total_cars }}</h3>
-                <p>Xe Trong Bãi</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-car"></i>
-            </div>
-            <a href="#" class="small-box-footer"
-                >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
-            ></a>
-        </div>
+<div class="row d-flex align-items-stretch">
+  <div class="col-lg-3 col-6">
+    <!-- small box -->
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3 id="total-cars">{{ total_cars }}</h3>
+        <p>Xe Trong Bãi</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-car"></i>
+      </div>
+      <a href="#" class="small-box-footer"
+        >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
+      ></a>
     </div>
-    <!-- ./col -->
-    <div class="col-lg-3 col-6">
-        <!-- small box -->
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h3 id="cars-in-today">{{ cars_in_today }}</h3>
-                <p>Xe Vào Hôm Nay</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-sign-in-alt"></i>
-            </div>
-            <a href="#" class="small-box-footer"
-                >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
-            ></a>
-        </div>
+  </div>
+  <!-- ./col -->
+  <div class="col-lg-3 col-6">
+    <!-- small box -->
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3 id="cars-in-today">{{ cars_in_today }}</h3>
+        <p>Xe Vào Hôm Nay</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-sign-in-alt"></i>
+      </div>
+      <a href="#" class="small-box-footer"
+        >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
+      ></a>
     </div>
-    <!-- ./col -->
-    <div class="col-lg-3 col-6">
-        <!-- small box -->
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h3 id="cars-out-today">{{ cars_out_today }}</h3>
-                <p>Xe Ra Hôm Nay</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-sign-out-alt"></i>
-            </div>
-            <a href="#" class="small-box-footer"
-                >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
-            ></a>
-        </div>
+  </div>
+  <!-- ./col -->
+  <div class="col-lg-3 col-6">
+    <!-- small box -->
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3 id="cars-out-today">{{ cars_out_today }}</h3>
+        <p>Xe Ra Hôm Nay</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-sign-out-alt"></i>
+      </div>
+      <a href="#" class="small-box-footer"
+        >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
+      ></a>
     </div>
-    <!-- ./col -->
-    <div class="col-lg-3 col-6">
-        <!-- small box -->
-        <div class="small-box bg-danger">
-            <div class="inner">
-                <h3 id="available-spots">{{ available_spots }}</h3>
-                <p>Chỗ Trống</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-parking"></i>
-            </div>
-            <a href="#" class="small-box-footer"
-                >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
-            ></a>
-        </div>
+  </div>
+  <!-- ./col -->
+  <div class="col-lg-3 col-6">
+    <!-- small box -->
+    <div class="small-box bg-danger">
+      <div class="inner">
+        <h3 id="available-spots">{{ available_spots }}</h3>
+        <p>Chỗ Trống</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-parking"></i>
+      </div>
+      <a href="#" class="small-box-footer"
+        >Xem chi tiết <i class="fas fa-arrow-circle-right"></i
+      ></a>
     </div>
-    <!-- ./col -->
+  </div>
+  <!-- ./col -->
 </div>
 
 <!-- Main row -->
 <div class="row">
-    <!-- Left col -->
-    <section class="col-lg-7 connectedSortable">
-        <!-- Custom tabs (Charts with tabs)-->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="fas fa-chart-pie mr-1"></i>
-                    Thống Kê Ra Vào
-                </h3>
-                <div class="card-tools">
-                    <ul class="nav nav-pills ml-auto">
-                        <li class="nav-item">
-                            <a
-                                class="nav-link active"
-                                href="#revenue-chart"
-                                data-toggle="tab"
-                                >Ngày</a
-                            >
-                        </li>
-                        <li class="nav-item">
-                            <a
-                                class="nav-link"
-                                href="#sales-chart"
-                                data-toggle="tab"
-                                >Tuần</a
-                            >
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <!-- /.card-header -->
-            <div class="card-body">
-                <div class="tab-content p-0">
-                    <!-- Morris chart - Sales -->
-                    <div
-                        class="chart tab-pane active"
-                        id="revenue-chart"
-                        style="position: relative; height: 300px"
-                    >
-                        <canvas
-                            id="revenue-chart-canvas"
-                            height="300"
-                            style="height: 300px"
-                        ></canvas>
-                    </div>
-                    <div
-                        class="chart tab-pane"
-                        id="sales-chart"
-                        style="position: relative; height: 300px"
-                    >
-                        <canvas
-                            id="sales-chart-canvas"
-                            height="300"
-                            style="height: 300px"
-                        ></canvas>
-                    </div>
-                </div>
-            </div>
-            <!-- /.card-body -->
+  <!-- Left col -->
+  <section class="col-lg-7 connectedSortable d-flex align-items-stretch">
+    <!-- Custom tabs (Charts with tabs)-->
+    <div class="card h-100 w-100">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-chart-pie mr-1"></i>
+          Thống Kê Ra Vào
+        </h3>
+        <div class="card-tools">
+          <ul class="nav nav-pills ml-auto">
+            <li class="nav-item">
+              <a class="nav-link active" href="#revenue-chart" data-toggle="tab"
+                >Ngày</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#sales-chart" data-toggle="tab">Tuần</a>
+            </li>
+          </ul>
         </div>
-        <!-- /.card -->
+      </div>
+      <!-- /.card-header -->
+      <div class="card-body">
+        <div class="tab-content p-0">
+          <!-- Morris chart - Sales -->
+          <div
+            class="chart tab-pane active"
+            id="revenue-chart"
+            style="position: relative; height: 300px"
+          >
+            <canvas
+              id="revenue-chart-canvas"
+              height="300"
+              style="height: 300px"
+            ></canvas>
+          </div>
+          <div
+            class="chart tab-pane"
+            id="sales-chart"
+            style="position: relative; height: 300px"
+          >
+            <canvas
+              id="sales-chart-canvas"
+              height="300"
+              style="height: 300px"
+            ></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- /.card-body -->
+    </div>
+    <!-- /.card -->
 
-        <!-- TO DO List -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="ion ion-clipboard mr-1"></i>
-                    Hoạt Động Gần Đây
-                </h3>
-                <div class="card-tools">
-                    <span class="badge badge-info">8</span>
-                </div>
-            </div>
-            <!-- /.card-header -->
-            <div class="card-body">
-                <ul class="todo-list" data-widget="todo-list">
-                    {% for rec in recent_history %}
-                    <li>
-                        <span class="text"
-                            >Xe BKS: {{ rec.number_plate }} vào lúc {{
-                            rec.created_at.strftime('%H:%M') if rec.created_at
-                            else 'N/A' }}</span
-                        >
-                        <small class="badge badge-info"
-                            ><i class="far fa-clock"></i> {{ loop.index }} phút
-                            trước</small
-                        >
-                    </li>
-                    {% else %}
-                    <li>
-                        <span class="text text-muted">Chưa có hoạt động</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            <!-- /.card-body -->
+    <!-- /.card -->
+  </section>
+  <section class="col-lg connectedSortable d-flex align-items-stretch">
+    <!-- TO DO List -->
+    <div class="card h-100 w-100">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="ion ion-clipboard mr-1"></i>
+          Hoạt Động Gần Đây
+        </h3>
+        <div class="card-tools">
+          <span class="badge badge-info">8</span>
         </div>
-        <!-- /.card -->
-    </section>
+      </div>
+      <!-- /.card-header -->
+      <div class="card-body">
+        <ul class="todo-list" data-widget="todo-list">
+          {% for rec in recent_history %}
+          <li>
+            <span class="text"
+              >Xe BKS: {{ rec.number_plate }} vào lúc {{
+              rec.created_at.strftime('%H:%M') if rec.created_at else 'N/A'
+              }}</span
+            >
+            <small class="badge badge-info"
+              ><i class="far fa-clock"></i> {{ loop.index }} phút trước</small
+            >
+          </li>
+          {% else %}
+          <li>
+            <span class="text text-muted">Chưa có hoạt động</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <!-- /.card-body -->
+    </div>
     <!-- /.Left col -->
-
-    <!-- right col (We are only adding the ID to make the widgets sortable)-->
-    <section class="col-lg-5 connectedSortable">
-        <!-- Map card -->
-        <div class="card bg-gradient-primary">
-            <div class="card-header border-0">
-                <h3 class="card-title">
-                    <i class="fas fa-map-marker-alt mr-1"></i>
-                    Sơ Đồ Bãi Đỗ
-                </h3>
-                <!-- card tools -->
-                <div class="card-tools">
-                    <button
-                        type="button"
-                        class="btn btn-primary btn-sm daterange"
-                        title="Date range"
-                    >
-                        <i class="far fa-calendar-alt"></i>
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        data-card-widget="collapse"
-                        title="Collapse"
-                    >
-                        <i class="fas fa-minus"></i>
-                    </button>
-                </div>
-                <!-- /.card-tools -->
-            </div>
-            <div class="card-body">
-                <div id="world-map" style="height: 250px; width: 100%"></div>
-            </div>
-            <!-- /.card-body-->
-            <div class="card-footer bg-transparent">
-                <div class="row">
-                    <div class="col-4 text-center">
-                        <div class="text-white">
-                            <span class="text-lg">85%</span><br />
-                            Đã Sử Dụng
-                        </div>
-                    </div>
-                    <div class="col-4 text-center">
-                        <div class="text-white">
-                            <span class="text-lg">15%</span><br />
-                            Còn Trống
-                        </div>
-                    </div>
-                    <div class="col-4 text-center">
-                        <div class="text-white">
-                            <span class="text-lg">200</span><br />
-                            Tổng Chỗ
-                        </div>
-                    </div>
-                </div>
-                <!-- /.row -->
-            </div>
-        </div>
-        <!-- /.card -->
-
-        <!-- solid sales graph -->
-        <div class="card bg-gradient-info">
-            <div class="card-header border-0">
-                <h3 class="card-title">
-                    <i class="fas fa-th mr-1"></i>
-                    Nhận Diện Gần Đây
-                </h3>
-                <div class="card-tools">
-                    <button
-                        type="button"
-                        class="btn bg-info btn-sm"
-                        data-card-widget="collapse"
-                    >
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <button
-                        type="button"
-                        class="btn bg-info btn-sm"
-                        data-card-widget="remove"
-                    >
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-6">
-                        <img
-                            src="{{ url_for('static', filename='image/plate_005213571e764323a3e17b6e8fcef7d1.jpg') }}"
-                            class="img-fluid"
-                            alt="Biển số nhận diện"
-                        />
-                        <p class="text-white text-center">30A-12345</p>
-                    </div>
-                    <div class="col-6">
-                        <img
-                            src="{{ url_for('static', filename='image/plate_1e5e3ec9362746cca1dc1261e14df1f8.jpg') }}"
-                            class="img-fluid"
-                            alt="Biển số nhận diện"
-                        />
-                        <p class="text-white text-center">29B-67890</p>
-                    </div>
-                </div>
-                <!-- /.row -->
-            </div>
-        </div>
-        <!-- /.card -->
-    </section>
-    <!-- right col -->
+  </section>
 </div>
 <!-- /.row (main row) -->
 {% endblock %} {% block additional_js %}
 <script>
-    // Chart initialization
-    $(function () {
-      const weekly = {{ weekly_data|tojson }};
-      const labels = weekly.map(x => x.date);
-      const data = weekly.map(x => x.count);
+  // Chart initialization
+  $(function () {
+    const weekly = {{ weekly_data|tojson }};
+    const labels = weekly.map(x => x.date);
+    const data = weekly.map(x => x.count);
 
-      var ctx = document.getElementById('revenue-chart-canvas').getContext('2d');
-      var revenueChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Xe Vào (7 ngày)',
-            backgroundColor: 'rgba(60,141,188,0.9)',
-            borderColor: 'rgba(60,141,188,0.8)',
-            data: data,
-            fill: false
-          }]
+    var ctx = document.getElementById('revenue-chart-canvas').getContext('2d');
+    var revenueChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Xe Vào (7 ngày)',
+          backgroundColor: 'rgba(60,141,188,0.9)',
+          borderColor: 'rgba(60,141,188,0.8)',
+          data: data,
+          fill: false
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        legend: {
+          display: true
         },
-        options: {
-          maintainAspectRatio: false,
-          responsive: true,
-          legend: {
-            display: true
-          },
-          scales: {
-            xAxes: [{
-              gridLines: { display: false }
-            }],
-            yAxes: [{
-              gridLines: { display: false }
-            }]
-          }
+        scales: {
+          xAxes: [{
+            gridLines: { display: false }
+          }],
+          yAxes: [{
+            gridLines: { display: false }
+          }]
         }
-      });
+      }
     });
+  });
 </script>
 {% endblock %}
