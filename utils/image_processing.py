@@ -11,7 +11,6 @@ try:
     from paddleocr import PaddleOCR
 
     PADDLE_OCR_AVAILABLE = True
-    # Không khởi tạo ngay, sẽ khởi tạo khi cần dùng
     paddle_ocr = None
 except ImportError:
     PADDLE_OCR_AVAILABLE = False
@@ -37,7 +36,6 @@ yolo_model = YOLO("runs/train3/weights/best.pt")
 
 def detect_plate_yolo(image_path, use_paddle_ocr=True):
     results = yolo_model(image_path)
-    # print("YOLO results:", results)
     boxes = (
         results[0].boxes.xyxy.cpu().numpy() if hasattr(results[0].boxes, "xyxy") else []
     )
@@ -50,7 +48,6 @@ def detect_plate_yolo(image_path, use_paddle_ocr=True):
     plate_crop = image.crop((x1, y1, x2, y2))
     plate_crop.save("debug_plate_crop.jpg")
 
-    # Sử dụng OCR engine được chọn
     number_plate = read_number_plate(plate_crop, use_paddle=use_paddle_ocr)
     print(
         f"Ket qua OCR ({'PaddleOCR' if use_paddle_ocr and PADDLE_OCR_AVAILABLE else 'Tesseract'}): ",
@@ -85,14 +82,12 @@ def read_number_plate_paddle_ocr(image_or_path):
         print("PaddleOCR không khả dụng, chuyển sang sử dụng Tesseract")
         return read_number_plate_tesseract(image_or_path)
 
-    # Lazy loading PaddleOCR
     ocr_instance = get_paddle_ocr()
     if ocr_instance is None:
         print("Không thể khởi tạo PaddleOCR, chuyển sang sử dụng Tesseract")
         return read_number_plate_tesseract(image_or_path)
 
     try:
-        # Chuyển đổi image thành numpy array nếu cần
         if isinstance(image_or_path, str):
             image = cv2.imread(image_or_path)
         elif isinstance(image_or_path, Image.Image):
@@ -100,20 +95,16 @@ def read_number_plate_paddle_ocr(image_or_path):
         else:
             image = image_or_path
 
-        # Sử dụng PaddleOCR để nhận diện
         result = ocr_instance.ocr(image, cls=True)
 
         # Xử lý kết quả
         if result and result[0]:
-            # Lấy tất cả text được phát hiện và ghép lại
             texts = []
             for line in result[0]:
-                if line[1][1] > 0.5:  # Chỉ lấy những kết quả có confidence > 0.5
+                if line[1][1] > 0.5:  
                     texts.append(line[1][0])
 
-            # Ghép tất cả text lại thành một chuỗi
             full_text = "".join(texts)
-            # Loại bỏ khoảng trắng và ký tự không mong muốn
             number_plate = "".join(char for char in full_text if not char.isspace())
             return number_plate
         else:
@@ -136,9 +127,7 @@ def read_number_plate_tesseract(image_or_path):
     else:
         image = image_or_path
     image = preprocess_for_ocr(image)
-    # Đọc toàn bộ text, giữ lại cả xuống dòng
     text = pytesseract.image_to_string(image, lang="eng", config="--psm 6")
-    # Ghép các dòng lại, loại bỏ khoảng trắng và ký tự xuống dòng
     number_plate = "".join(char for char in text if not char.isspace())
     return number_plate
 

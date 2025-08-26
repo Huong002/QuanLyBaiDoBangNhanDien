@@ -1,4 +1,3 @@
-
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -28,18 +27,12 @@ def train_model(data_source='csv', csv_path='utils/dataset.csv', app=None):
         raise ValueError("data_source phải là 'csv' hoặc 'database'")
 
     df['hour'] = df[time_col].dt.hour
-    
     df['day_of_week'] = df[time_col].dt.dayofweek
-    
     df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x >= 5 else 0)
-    
     X = df[["hour", "day_of_week", "is_weekend"]]
-    
     y = df["Occupancy"]
-    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = LinearRegression()
-    
     model.fit(X_train, y_train)
     
     return model

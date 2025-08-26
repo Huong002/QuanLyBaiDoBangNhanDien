@@ -271,17 +271,17 @@ def send_fee_email(id, new_status, user_email):
 
         try:
             from flask_mail import Message
-            from app import app, mail  # Đảm bảo mail được import từ app
+            from app import app, mail  
 
             with app.app_context():
                 msg = Message(
                     subject="Thông báo phí gửi xe",
                     recipients=[
                         user_email
-                    ],  # Đảm bảo recipients là danh sách chứa chuỗi
+                    ],  
                     body=f"Xe {np.number_plate} đã ra bãi. Phí: {total_fee:,}đ. Số dư còn lại: {user.balance if np.user_id and user else 'N/A'}đ.",
                 )
-                mail.send(msg)  # Gửi email
+                mail.send(msg)  
                 print(f"Đã gửi email tới {user_email} tại {datetime.utcnow()}")
         except Exception as e:
             print(f"Lỗi gửi email tại {datetime.utcnow()}: {str(e)}")
