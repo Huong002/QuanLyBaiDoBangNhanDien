@@ -20,15 +20,13 @@ def insert_np(number_plate):
         province = get_province(number_plate)
 
         if plates:
-            latest = max(
-                plates, key=lambda x: x.date_in
-            )  
+            latest = max(plates, key=lambda x: x.date_in)
             for plate in plates:
                 if plate.id != latest.id:
                     db.session.delete(plate)
             db.session.commit()
 
-            if latest.status == 0:  
+            if latest.status == 0:
                 latest.status = 1
                 latest.date_in = datetime.utcnow()
                 latest.date_out = None
@@ -260,7 +258,7 @@ def is_vehicle_in_parking(number_plate):
 
 def send_fee_email(id, new_status, user_email):
     np = Numberplate.query.get(id)
-    if np and new_status == 0:  # Chỉ kiểm tra new_status
+    if np and new_status == 0:
         total_fee = 1000
         user = None
         if np.user_id:
@@ -271,20 +269,60 @@ def send_fee_email(id, new_status, user_email):
 
         try:
             from flask_mail import Message
-            from app import app, mail  
+            from app import app, mail
+            from datetime import datetime
+
+            # Thông tin chi tiết
+            plate = np.number_plate
+            date_in = np.date_in.strftime("%d/%m/%Y %H:%M") if np.date_in else "N/A"
+            date_out = (
+                np.date_out.strftime("%d/%m/%Y %H:%M")
+                if np.date_out
+                else datetime.utcnow().strftime("%d/%m/%Y %H:%M")
+            )
+            balance = f"{user.balance:,}đ" if np.user_id and user else "N/A"
+
+            # Nội dung HTML
+            html_body = f"""
+            <div style='font-family: Arial, sans-serif; color: #222;'>
+                <h2 style='color: #1976d2;'>THÔNG BÁO PHÍ GỬI XE</h2>
+                <p>Kính gửi Quý khách,</p>
+                <p>Xe <b>{plate}</b> đã <b>ra khỏi bãi</b> vào lúc <b>{date_out}</b>.</p>
+                <ul>
+                    <li><b>Biển số xe:</b> {plate}</li>
+                    <li><b>Thời gian vào:</b> {date_in}</li>
+                    <li><b>Thời gian ra:</b> {date_out}</li>
+                    <li><b>Phí gửi xe:</b> <span style='color: #d32f2f;'>{total_fee:,}đ</span></li>
+                    <li><b>Số dư còn lại:</b> <span style='color: #388e3c;'>{balance}</span></li>
+                </ul>
+                <p>Xin cảm ơn Quý khách đã sử dụng dịch vụ!</p>
+                <hr>
+                <small>Đây là email tự động, vui lòng không trả lời email này.</small>
+            </div>
+            """
+            # Nội dung plain text fallback
+            text_body = (
+                f"Kính gửi Quý khách,\n"
+                f"Xe {plate} đã ra khỏi bãi vào lúc {date_out}.\n"
+                f"Biển số xe: {plate}\n"
+                f"Thời gian vào: {date_in}\n"
+                f"Thời gian ra: {date_out}\n"
+                f"Phí gửi xe: {total_fee:,}đ\n"
+                f"Số dư còn lại: {balance}\n"
+                f"\nXin cảm ơn Quý khách đã sử dụng dịch vụ!"
+            )
 
             with app.app_context():
                 msg = Message(
                     subject="Thông báo phí gửi xe",
-                    recipients=[
-                        user_email
-                    ],  
-                    body=f"Xe {np.number_plate} đã ra bãi. Phí: {total_fee:,}đ. Số dư còn lại: {user.balance if np.user_id and user else 'N/A'}đ.",
+                    recipients=[user_email],
+                    body=text_body,
+                    html=html_body,
                 )
-                mail.send(msg)  
-                print(f"Đã gửi email tới {user_email} tại {datetime.utcnow()}")
+                mail.send(msg)
+                print(f"[EMAIL] Đã gửi email tới {user_email} tại {datetime.utcnow()}")
         except Exception as e:
-            print(f"Lỗi gửi email tại {datetime.utcnow()}: {str(e)}")
+            print(f"[EMAIL] Lỗi gửi email tại {datetime.utcnow()}: {str(e)}")
             import traceback
 
             traceback.print_exc()
