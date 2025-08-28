@@ -912,17 +912,33 @@ def detect_plate():
             pass
 
 
-# ham du doan so luong xe vao
-# @app.route('/predict', methods=['GET', 'POST'])
-# def predict():
-#     prediction = None
-#     if request.method == 'POST':
-#         thoi_gian = request.form.get('datetime')
-#         if thoi_gian:
-#             prediction = du_doan_so_xe(thoi_gian)
-#     return render_template('prediction.html', prediction=prediction)
+# --- Khởi tạo model mặc định khi start app ---
+from utils.prediction import load_model, train_model, save_model
+import os
 
-model = train_model(data_source="csv", csv_path="utils/dataset.csv", app=app)
+# Nếu chưa có model ở archive/csv, train từ database và lưu vào archive/csv
+csv_model_path = "archive/csv/best_model.pkl"
+db_model_path = "archive/database/best_model.pkl"
+
+if not os.path.exists(csv_model_path):
+    # Train từ database và lưu vào archive/csv
+    model = train_model(
+        data_source="database",
+        app=app,
+        model_path=csv_model_path,
+    )
+    # model._encoder đã được gán trong train_model
+else:
+    model, encoder = load_model(csv_model_path)
+    if model is not None and encoder is not None:
+        model._encoder = encoder
+    else:
+        # Nếu file tồn tại nhưng lỗi, train lại từ database
+        model = train_model(
+            data_source="database",
+            app=app,
+            model_path=csv_model_path,
+        )
 
 
 @app.route("/predict", methods=["GET", "POST"])
@@ -935,18 +951,31 @@ def predict():
     data_source = (
         request.args.get("data_source") or request.form.get("data_source") or "csv"
     )
+    # Chọn đường dẫn model tương ứng
+    if data_source == "csv":
+        model_path = "archive/csv/best_model.pkl"
+    else:
+        model_path = "archive/database/best_model.pkl"
 
-    # Huấn luyện lại model theo nguồn dữ liệu mỗi lần load trang hoặc submit
+    import logging
     try:
-        model = train_model(
-            data_source=data_source, csv_path="utils/dataset.csv", app=app
-        )
+        # Luôn nạp lại model đúng nguồn khi chuyển đổi
+        loaded_model, encoder = load_model(model_path)
+        if loaded_model is None or encoder is None:
+            loaded_model = train_model(
+                data_source=data_source,
+                csv_path="utils/dataset.csv",
+                app=app,
+                model_path=model_path,
+            )
+        else:
+            loaded_model._encoder = encoder
+        model = loaded_model  # Cập nhật lại biến global model
+        logging.warning(f"[PREDICT] Đang dùng model từ nguồn: {data_source}, model_path: {model_path}")
     except Exception as e:
         error = f"Lỗi: {str(e)}"
 
-    week_labels = [
-        (datetime.now() + timedelta(days=i)).strftime("%d/%m") for i in range(7)
-    ]
+    week_labels = [(datetime.now() + timedelta(days=i)).strftime("%d/%m") for i in range(7)]
     week_predictions = [
         du_doan_so_xe(
             (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%dT%H:%M"), model
@@ -958,24 +987,20 @@ def predict():
     if request.method == "POST":
         thoi_gian = request.form.get("datetime")
         datetime_value = thoi_gian
-        try:
-            if thoi_gian:
+        if thoi_gian:
+            try:
                 prediction = du_doan_so_xe(thoi_gian, model)
-        except Exception as e:
-            error = f"Lỗi: {str(e)}"
-
-    # Nếu là GET và có query param datetime thì cũng giữ lại
-    if request.method == "GET":
-        datetime_value = request.args.get("datetime", "")
+            except Exception as e:
+                error = f"Lỗi dự báo: {str(e)}"
 
     return render_template(
         "prediction.html",
         prediction=prediction,
         week_labels=week_labels,
         week_predictions=week_predictions,
-        data_source=data_source,
-        error=error,
         datetime_value=datetime_value,
+        error=error,
+        data_source=data_source,
     )
 
 
