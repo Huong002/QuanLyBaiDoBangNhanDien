@@ -18,6 +18,7 @@ from models.number_plated import db, Numberplate
 import config.database as db_config
 from utils.prediction import train_model, du_doan_so_xe, predict_hourly
 from flask_mail import Mail
+from flask import send_file, make_response
 
 import os
 
@@ -342,6 +343,175 @@ def reports():
     except Exception as e:
         print(f"Lỗi báo cáo: {e}")
         return f"Lỗi: {e}", 500
+
+
+@app.route('/reports/export_excel')
+def export_reports_excel():
+    """Generate an Excel file for reports and return it as a download."""
+    try:
+        from io import BytesIO
+        from openpyxl import Workbook
+        from sqlalchemy import func
+
+        # Parse query parameters to determine which report to export
+        report_type = request.args.get('type', 'summary')  # summary, daily_counts, vehicles_by_date
+        today = datetime.now().date()
+
+        wb = Workbook()
+
+        if report_type == 'daily_counts':
+            # date range: start and end in YYYY-MM-DD
+            start_str = request.args.get('start')
+            end_str = request.args.get('end')
+            try:
+                if start_str:
+                    start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+                else:
+                    start_date = today - timedelta(days=29)
+                if end_str:
+                    end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+                else:
+                    end_date = today
+            except Exception:
+                return jsonify({'success': False, 'message': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+
+            if start_date > end_date:
+                return jsonify({'success': False, 'message': 'start must be <= end'}), 400
+
+            ws = wb.active
+            ws.title = 'Daily Counts'
+            ws.append(['Date', 'Count'])
+            d = start_date
+            while d <= end_date:
+                c = Numberplate.query.filter(db.func.date(Numberplate.created_at) == d).count()
+                ws.append([d.strftime('%Y-%m-%d'), c])
+                d += timedelta(days=1)
+
+        elif report_type == 'vehicles_by_date':
+            # Support either a single date or a start+end range (YYYY-MM-DD)
+            start_str = request.args.get('start')
+            end_str = request.args.get('end')
+            date_param = request.args.get('date')
+            try:
+                if start_str and end_str:
+                    start_date = datetime.strptime(start_str, '%Y-%m-%d')
+                    end_date = datetime.strptime(end_str, '%Y-%m-%d')
+                    if start_date.date() > end_date.date():
+                        return jsonify({'success': False, 'message': 'start must be <= end'}), 400
+
+                    ws = wb.active
+                    ws.title = f'Vehicles_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}'
+                    ws.append(['ID', 'Number Plate', 'Created At', 'Status', 'Date Out', 'Province', 'User ID'])
+
+                    # include entire end day by adding 1 day and using < end_next_day
+                    end_next = end_date + timedelta(days=1)
+                    records = (
+                        Numberplate.query
+                        .filter(Numberplate.created_at >= start_date, Numberplate.created_at < end_next)
+                        .order_by(Numberplate.created_at.asc())
+                        .all()
+                    )
+                else:
+                    # single date fallback: check date_param or single start/end
+                    single_str = date_param or start_str or end_str
+                    if single_str:
+                        target_date = datetime.strptime(single_str, '%Y-%m-%d').date()
+                    else:
+                        target_date = today
+
+                    ws = wb.active
+                    ws.title = f'Vehicles_{target_date.strftime("%Y%m%d")}'
+                    ws.append(['ID', 'Number Plate', 'Created At', 'Status', 'Date Out', 'Province', 'User ID'])
+                    records = Numberplate.query.filter(db.func.date(Numberplate.created_at) == target_date).order_by(Numberplate.created_at.asc()).all()
+
+                for r in records:
+                    ws.append([
+                        r.id,
+                        r.number_plate,
+                        r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else '',
+                        'Trong bãi' if r.status == 1 else 'Ra bãi',
+                        r.date_out.strftime('%Y-%m-%d %H:%M:%S') if getattr(r, 'date_out', None) else '',
+                        r.province if getattr(r, 'province', None) else '',
+                        r.user_id if getattr(r, 'user_id', None) else '',
+                    ])
+            except ValueError:
+                return jsonify({'success': False, 'message': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+
+        else:
+            # default: summary (weekly, top vehicles, hourly distribution)
+            # Weekly data (7 days)
+            week_ago = today - timedelta(days=6)
+            weekly_data = []
+            for i in range(7):
+                day = week_ago + timedelta(days=i)
+                count = Numberplate.query.filter(db.func.date(Numberplate.created_at) == day).count()
+                weekly_data.append((day.strftime('%Y-%m-%d'), count))
+
+            # Top vehicles last 30 days
+            month_ago = today - timedelta(days=30)
+            top_vehicles_query = (
+                db.session.query(
+                    Numberplate.number_plate,
+                    func.count(Numberplate.id).label('visit_count'),
+                    func.max(Numberplate.created_at).label('last_visit'),
+                )
+                .filter(Numberplate.created_at >= month_ago)
+                .group_by(Numberplate.number_plate)
+                .order_by(func.count(Numberplate.id).desc())
+                .limit(50)
+                .all()
+            )
+
+            # Hourly distribution for last 7 days
+            week_start = today - timedelta(days=6)
+            hourly_records = Numberplate.query.filter(Numberplate.created_at >= week_start).all()
+            hourly_stats = {'morning': 0, 'afternoon': 0, 'evening': 0, 'night': 0}
+            for r in hourly_records:
+                h = r.created_at.hour
+                if 6 <= h < 12:
+                    hourly_stats['morning'] += 1
+                elif 12 <= h < 18:
+                    hourly_stats['afternoon'] += 1
+                elif 18 <= h < 24:
+                    hourly_stats['evening'] += 1
+                else:
+                    hourly_stats['night'] += 1
+
+            # Build workbook
+            ws1 = wb.active
+            ws1.title = 'Weekly'
+            ws1.append(['Date', 'Count'])
+            for d, c in weekly_data:
+                ws1.append([d, c])
+
+            ws2 = wb.create_sheet('Top Vehicles')
+            ws2.append(['Number Plate', 'Visit Count', 'Last Visit'])
+            for v in top_vehicles_query:
+                last_visit = v.last_visit.strftime('%Y-%m-%d %H:%M:%S') if v.last_visit else ''
+                ws2.append([v.number_plate, v.visit_count, last_visit])
+
+            ws3 = wb.create_sheet('Hourly Distribution')
+            ws3.append(['Period', 'Count'])
+            ws3.append(['Morning (6-12)', hourly_stats['morning']])
+            ws3.append(['Afternoon (12-18)', hourly_stats['afternoon']])
+            ws3.append(['Evening (18-24)', hourly_stats['evening']])
+            ws3.append(['Night (0-6)', hourly_stats['night']])
+
+        # Save to bytes
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+
+        filename = f'reports_{today.strftime("%Y%m%d")}.xlsx'
+        return send_file(
+            bio,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        print(f"Error exporting excel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route("/settings")

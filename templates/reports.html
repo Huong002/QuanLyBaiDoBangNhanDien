@@ -226,8 +226,44 @@ breadcrumb %}
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Loại xuất</label>
+                            <select id="exportType" class="form-control">
+                                <option value="summary">
+                                    Tóm tắt (mặc định)
+                                </option>
+                                <option value="daily_counts">
+                                    Số lượng theo ngày (range)
+                                </option>
+                                <option value="vehicles_by_date">
+                                    Xe ra/vào trong ngày
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Start</label>
+                            <input
+                                type="date"
+                                id="exportStart"
+                                class="form-control"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>End / Date</label>
+                            <input
+                                type="date"
+                                id="exportEnd"
+                                class="form-control"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
                         <button
-                            class="btn btn-success btn-block"
+                            class="btn btn-success btn-block mt-4"
                             onclick="exportExcel()"
                         >
                             <i class="fas fa-file-excel"></i> Xuất Excel
@@ -265,6 +301,23 @@ breadcrumb %}
 {% endblock %} {% block page_scripts %}
 <script>
     $(document).ready(function() {
+            // set default date picker values
+            const today = new Date();
+            const toISO = d => d.toISOString().slice(0,10);
+            const endInput = document.getElementById('exportEnd');
+            const startInput = document.getElementById('exportStart');
+            if (endInput && !endInput.value) endInput.value = toISO(today);
+            if (startInput && !startInput.value) {
+                const sevenAgo = new Date(today);
+                sevenAgo.setDate(sevenAgo.getDate() - 7);
+                startInput.value = toISO(sevenAgo);
+            }
+
+            // when export type changes, adjust visible controls if needed
+            document.getElementById('exportType').addEventListener('change', function(e){
+                const t = e.target.value;
+                // nothing fancy for now; user can fill start/end as needed
+            });
       // Weekly Chart
       const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
       const weeklyChart = new Chart(weeklyCtx, {
@@ -332,8 +385,20 @@ breadcrumb %}
     });
 
     function exportExcel() {
-      toastr.info('Đang chuẩn bị file Excel...', 'Thông báo');
-      // Implement Excel export
+            toastr.info('Đang chuẩn bị file Excel...', 'Thông báo');
+            const type = document.getElementById('exportType').value;
+            const start = document.getElementById('exportStart').value;
+            const end = document.getElementById('exportEnd').value;
+            const base = "{{ url_for('export_reports_excel') }}";
+            const params = new URLSearchParams();
+            params.set('type', type);
+            if (start) params.set('start', start);
+            if (end) params.set('end', end);
+            // For vehicles_by_date, 'end' will be used as single 'date'
+            // backend accepts start+end range or single date via start or end
+            const url = base + '?' + params.toString();
+            // trigger download
+            window.location.href = url;
     }
 
     function exportPDF() {
